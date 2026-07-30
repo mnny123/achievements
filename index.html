@@ -158,6 +158,8 @@
     background: none; border: none; padding: 6px 4px; cursor: pointer;
     font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: underline;
   }
+  .link-btn-center { display: block; margin: 12px auto 0; }
+  .hint-good { color: var(--good); }
 
   .field { display: block; margin: 14px 0; }
   .field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
@@ -408,6 +410,7 @@ window.FIREBASE_CONFIG = {
 };
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 /**
@@ -744,6 +747,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   var MODE = 'memory';
   var FB = null;
+  var FBA = null;
   var FB_ERR = null;
   (function () {
     if (window.FIREBASE_CONFIG) {
@@ -756,6 +760,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         }
         window.firebase.initializeApp(window.FIREBASE_CONFIG);
         FB = window.firebase.database();
+        FBA = (window.firebase.auth && window.firebase.auth()) || null;
         MODE = 'firebase';
       } catch (e) {
         FB_ERR = String((e && e.message) || e);
@@ -903,6 +908,43 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     }
     return null;
   }
+  /* ---------------- accounts (Firebase Authentication) ---------------- */
+  var AUTH_MESSAGES = {
+    'auth/invalid-email': 'That doesn’t look like a valid email address.',
+    'auth/user-not-found': 'No account with that email yet. Check the spelling, or sign up instead.',
+    'auth/wrong-password': 'Wrong email or password.',
+    'auth/invalid-credential': 'Wrong email or password.',
+    'auth/invalid-login-credentials': 'Wrong email or password.',
+    'auth/missing-password': 'Enter your password.',
+    'auth/email-already-in-use': 'An account with that email already exists — log in instead.',
+    'auth/weak-password': 'Passwords need to be at least 6 characters.',
+    'auth/too-many-requests': 'Too many attempts. Wait a few minutes and try again.',
+    'auth/network-request-failed': 'Couldn’t reach the server. Check your connection and try again.',
+    'auth/operation-not-allowed': 'Email sign-in isn’t switched on for this game yet. Whoever set it up needs to enable Email/Password in the Firebase console under Authentication → Sign-in method.'
+  };
+  function authMessage(err) {
+    var code = (err && err.code) || '';
+    return AUTH_MESSAGES[code] || String((err && err.message) || err);
+  }
+  async function authSignUp(email, password) {
+    try {
+      var cred = await FBA.createUserWithEmailAndPassword(email.trim(), password);
+      return { ok: true, user: cred.user };
+    } catch (err) { return { ok: false, error: authMessage(err) }; }
+  }
+  async function authSignIn(email, password) {
+    try {
+      var cred = await FBA.signInWithEmailAndPassword(email.trim(), password);
+      return { ok: true, user: cred.user };
+    } catch (err) { return { ok: false, error: authMessage(err) }; }
+  }
+  async function authReset(email) {
+    try {
+      await FBA.sendPasswordResetEmail(email.trim());
+      return { ok: true };
+    } catch (err) { return { ok: false, error: authMessage(err) }; }
+  }
+
   function findByContact(playersMap, norm) {
     var ids = Object.keys(playersMap);
     for (var i = 0; i < ids.length; i++) {
@@ -1018,7 +1060,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _b = useState(null), game = _b[0], setGame = _b[1];
     var _c = useState({}), players = _c[0], setPlayers = _c[1];
     var _d = useState([]), logs = _d[0], setLogs = _d[1];
-    var _e = useState(null), myId = _e[0], setMyId = _e[1];
+    var _e = useState(null), localId = _e[0], setLocalId = _e[1];
+    var _m = useState(null), authUser = _m[0], setAuthUser = _m[1];
+    /* non-Firebase builds have no accounts, so auth is "ready" immediately */
+    var _n = useState(MODE !== 'firebase'), authReady = _n[0], setAuthReady = _n[1];
     var _f = useState(false), refreshing = _f[0], setRefreshing = _f[1];
     var _g = useState(null), errorBanner = _g[0], setErrorBanner = _g[1];
     var _h = useState('board'), tab = _h[0], setTab = _h[1];
@@ -1054,18 +1099,36 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         setGame(g.value);
         setPlayers((p.value && p.value.players) || {});
         setLogs((l.value && l.value.logs) || []);
-        if (me.ok && me.value && me.value.playerId) setMyId(me.value.playerId);
+        if (me.ok && me.value && me.value.playerId) setLocalId(me.value.playerId);
         setStatus('ready');
         if (isRefresh) setErrorBanner(null);
       }
       setRefreshing(false);
     }
 
-    useEffect(function () { loadAll(false); }, []);
-
-    /* Firebase pushes changes live — subscribe once and mirror into state */
+    /* accounts: watch sign-in state; Firebase keeps the session across reloads
+       and devices, so signing in anywhere restores the same player */
     useEffect(function () {
-      if (MODE !== 'firebase' || !FB) return;
+      if (MODE !== 'firebase' || !FBA) return;
+      var off = FBA.onAuthStateChanged(function (u) {
+        setAuthUser(u ? { uid: u.uid, email: u.email } : null);
+        setAuthReady(true);
+      }, function (err) {
+        setErrorBanner(authMessage(err));
+        setAuthReady(true);
+      });
+      return function () { if (typeof off === 'function') off(); };
+    }, []);
+
+    /* game data is only read once signed in (database rules require auth) */
+    useEffect(function () {
+      if (MODE === 'firebase' && !authUser) return;
+      loadAll(false);
+    }, [authUser]);
+
+    /* Firebase pushes changes live — subscribe and mirror into state */
+    useEffect(function () {
+      if (MODE !== 'firebase' || !FB || !authUser) return;
       function parse(v) {
         if (typeof v === 'string') { try { return JSON.parse(v); } catch (e) { return null; } }
         return (v && typeof v === 'object') ? v : null;
@@ -1087,8 +1150,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         sub(KEY_LOGS, function (l) { setLogs((l && l.logs) || []); })
       ];
       return function () { offs.forEach(function (off) { off(); }); };
-    }, []);
+    }, [authUser]);
 
+    /* with accounts, the Firebase uid *is* the player id */
+    var myId = MODE === 'firebase' ? ((authUser && authUser.uid) || null) : localId;
     var me = myId && players[myId] ? players[myId] : null;
     var isCreator = !!(me && game && game.creatorId === me.id);
 
@@ -1151,18 +1216,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         return d;
       });
       if (!res.ok) return res;
-      if (isNew) {
+      if (isNew && MODE !== 'firebase') {
+        /* without accounts, identity is remembered per device */
         var idRes = await storeSet(KEY_ME, { playerId: profile.id }, false);
         if (!idRes.ok) return idRes;
-        setMyId(profile.id);
+        setLocalId(profile.id);
       }
       setPlayers((res.value && res.value.players) || {});
       return { ok: true };
     }
 
+    /* the signed-in account, as a profile contact record */
+    function myContact() {
+      if (MODE === 'firebase' && authUser && authUser.email) {
+        return { type: 'email', norm: authUser.email.toLowerCase(), display: authUser.email };
+      }
+      return null;
+    }
+
     async function createGame(form) {
       return withBusy(async function () {
-        var playerId = uid();
+        var playerId = MODE === 'firebase' ? authUser.uid : uid();
         var gameDoc = {
           version: 1,
           joinCode: form.joinCode.trim().toUpperCase(),
@@ -1177,7 +1251,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           return gameDoc;
         });
         if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
-        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: form.contact }, true);
+        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: myContact() || form.contact }, true);
         if (!pr.ok) { setErrorBanner('The game was created but saving your profile failed: ' + pr.error); return; }
         setGame(res.value);
         setErrorBanner(null);
@@ -1192,28 +1266,48 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           setErrorBanner('That join code doesn’t match this game. Check it with the person who set the game up.');
           return;
         }
-        /* same email/phone as an existing player -> sign back into that profile
-           instead of creating a duplicate */
-        var roster = await storeGet(KEY_PLAYERS);
-        var rosterMap = (roster.ok && roster.value && roster.value.players) || {};
-        var existing = form.contact ? findByContact(rosterMap, form.contact.norm) : null;
-        if (existing) {
-          var idRes = await storeSet(KEY_ME, { playerId: existing.id }, false);
-          if (!idRes.ok) { setErrorBanner('Signing in failed: ' + idRes.error); return; }
-          setPlayers(rosterMap);
-          setMyId(existing.id);
-          setGame(fresh.value);
-          setErrorBanner(null);
-          showToast({ msg: 'Welcome back, ' + existing.name + ' — signed in to your existing profile.' });
-          return;
+        var playerId;
+        if (MODE === 'firebase') {
+          playerId = authUser.uid;
+        } else {
+          /* no accounts here: same email/phone as an existing player signs back
+             into that profile instead of creating a duplicate */
+          var roster = await storeGet(KEY_PLAYERS);
+          var rosterMap = (roster.ok && roster.value && roster.value.players) || {};
+          var existing = form.contact ? findByContact(rosterMap, form.contact.norm) : null;
+          if (existing) {
+            var idRes = await storeSet(KEY_ME, { playerId: existing.id }, false);
+            if (!idRes.ok) { setErrorBanner('Signing in failed: ' + idRes.error); return; }
+            setPlayers(rosterMap);
+            setLocalId(existing.id);
+            setGame(fresh.value);
+            setErrorBanner(null);
+            showToast({ msg: 'Welcome back, ' + existing.name + ' — signed in to your existing profile.' });
+            return;
+          }
+          playerId = uid();
         }
-        var playerId = uid();
-        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: form.contact }, true);
+        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: myContact() || form.contact }, true);
         if (!pr.ok) { setErrorBanner('Joining failed: ' + pr.error); return; }
         setGame(fresh.value);
         setErrorBanner(null);
         setTab('board');
       });
+    }
+
+    async function logOut() {
+      try {
+        await FBA.signOut();
+        setEditingProfile(false);
+        setStatsFor(null);
+        setGame(null);
+        setPlayers({});
+        setLogs([]);
+        setStatus('loading');
+        setErrorBanner(null);
+      } catch (err) {
+        setErrorBanner('Couldn’t log out: ' + authMessage(err));
+      }
     }
 
     async function updateMyProfile(form) {
@@ -1337,6 +1431,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     }
 
     /* ------------ screens ------------ */
+    if (!authReady) {
+      return html`<div className="shell center-screen">
+        <div className="spinner" aria-hidden="true"></div>
+        <p className="muted">Checking your account…</p>
+      </div>`;
+    }
+
+    /* accounts available but nobody signed in */
+    if (MODE === 'firebase' && !authUser) {
+      return html`<div className="shell">
+        <header className="topbar">
+          <div className="topbar-title">
+            <span className="eyebrow">Achievement</span>
+            <h1 className="h1">Leaderboard</h1>
+          </div>
+        </header>
+        ${errorBanner ? html`<${Banner} kind="error" onClose=${function () { setErrorBanner(null); }}>${errorBanner}<//>` : null}
+        <${AuthScreen} />
+      </div>`;
+    }
+
     if (status === 'loading') {
       return html`<div className="shell center-screen">
         <div className="spinner" aria-hidden="true"></div>
@@ -1381,15 +1496,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (!game) {
       return html`<div className="shell">
         ${headerBar}${banners}
-        <${SetupScreen} busy=${busy} onCreate=${createGame} />
+        <${SetupScreen} busy=${busy} authEmail=${authUser && authUser.email} onCreate=${createGame} />
       </div>`;
     }
 
-    /* game exists but this device hasn't joined */
+    /* game exists but this account has no profile in it yet */
     if (!me) {
       return html`<div className="shell">
         ${headerBar}${banners}
-        <${JoinScreen} busy=${busy} phase=${game.phase} players=${players} onJoin=${joinGame} />
+        <${JoinScreen} busy=${busy} phase=${game.phase} players=${players}
+          authEmail=${authUser && authUser.email} onJoin=${joinGame} />
       </div>`;
     }
 
@@ -1423,7 +1539,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <${StatsView} player=${players[statsFor]} logs=${logs} achById=${achById} scores=${scores} isMe=${statsFor === myId} />
       <//>` : null}
       ${editingProfile ? html`<${Sheet} onClose=${function () { setEditingProfile(false); }}>
-        <${EditProfile} me=${me} busy=${busy} onSave=${updateMyProfile} />
+        <${EditProfile} me=${me} busy=${busy} onSave=${updateMyProfile} onLogOut=${logOut} />
       <//>` : null}
       ${toast ? html`<div className="toast" role="status">
         <span>${toast.msg}</span>
@@ -1439,6 +1555,87 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       Your name, picture, score and activity are visible to everyone in the game.
       Your email or phone number is used only to sign you in and is never shown to other players.
     </div>`;
+  }
+
+  /* log in / sign up — only used when Firebase accounts are available */
+  function AuthScreen(props) {
+    var _a = useState('login'), mode = _a[0], setMode = _a[1];
+    var _b = useState(''), email = _b[0], setEmail = _b[1];
+    var _c = useState(''), pw = _c[0], setPw = _c[1];
+    var _d = useState(''), pw2 = _d[0], setPw2 = _d[1];
+    var _e = useState(null), err = _e[0], setErr = _e[1];
+    var _f = useState(null), note = _f[0], setNote = _f[1];
+    var _g = useState(false), busy = _g[0], setBusy = _g[1];
+    var isSignUp = mode === 'signup';
+
+    async function submit(e) {
+      if (e) e.preventDefault();
+      setErr(null); setNote(null);
+      if (!email.trim()) { setErr('Enter your email address.'); return; }
+      if (!pw) { setErr('Enter your password.'); return; }
+      if (isSignUp) {
+        if (pw.length < 6) { setErr('Passwords need to be at least 6 characters.'); return; }
+        if (pw !== pw2) { setErr('Those passwords don’t match.'); return; }
+      }
+      setBusy(true);
+      var res = isSignUp ? await authSignUp(email, pw) : await authSignIn(email, pw);
+      setBusy(false);
+      if (!res.ok) setErr(res.error);
+      /* on success the auth listener swaps the screen out */
+    }
+
+    async function forgot() {
+      setErr(null); setNote(null);
+      if (!email.trim()) { setErr('Enter your email address first, then tap Forgot password.'); return; }
+      setBusy(true);
+      var res = await authReset(email);
+      setBusy(false);
+      if (res.ok) setNote('Password reset email sent to ' + email.trim() + '. Check your inbox (and spam).');
+      else setErr(res.error);
+    }
+
+    return html`<main className="card">
+      <span className="eyebrow">${isSignUp ? 'New account' : 'Welcome back'}</span>
+      <h2 className="h2">${isSignUp ? 'Create your account' : 'Log in'}</h2>
+      <p className="muted">${isSignUp
+        ? 'Your account works on any phone, tablet or computer — log in and your profile, points and history come with you.'
+        : 'Log in with the email and password you signed up with.'}</p>
+
+      <div className="segmented" role="tablist">
+        <button role="tab" aria-selected=${!isSignUp} className=${'seg-btn' + (!isSignUp ? ' seg-btn-active' : '')}
+          onClick=${function () { setMode('login'); setErr(null); setNote(null); }}>Log in</button>
+        <button role="tab" aria-selected=${isSignUp} className=${'seg-btn' + (isSignUp ? ' seg-btn-active' : '')}
+          onClick=${function () { setMode('signup'); setErr(null); setNote(null); }}>Sign up</button>
+      </div>
+
+      <form onSubmit=${submit}>
+        <label className="field">
+          <span className="field-label">Email</span>
+          <input className="input" type="email" autoComplete="email" inputMode="email" autoCapitalize="none"
+            value=${email} placeholder="you@example.com"
+            onInput=${function (ev) { setEmail(ev.target.value); }} />
+        </label>
+        <label className="field">
+          <span className="field-label">Password</span>
+          <input className="input" type="password"
+            autoComplete=${isSignUp ? 'new-password' : 'current-password'}
+            value=${pw} placeholder=${isSignUp ? 'At least 6 characters' : ''}
+            onInput=${function (ev) { setPw(ev.target.value); }} />
+        </label>
+        ${isSignUp ? html`<label className="field">
+          <span className="field-label">Confirm password</span>
+          <input className="input" type="password" autoComplete="new-password" value=${pw2}
+            onInput=${function (ev) { setPw2(ev.target.value); }} />
+        </label>` : null}
+        ${err ? html`<div className="hint hint-error">${err}</div>` : null}
+        ${note ? html`<div className="hint hint-good">${note}</div>` : null}
+        <button className="btn btn-primary btn-block" type="submit" disabled=${busy}>
+          ${busy ? (isSignUp ? 'Creating account…' : 'Logging in…') : (isSignUp ? 'Create account' : 'Log in')}
+        </button>
+      </form>
+      ${!isSignUp ? html`<button className="link-btn link-btn-center" disabled=${busy} onClick=${forgot}>Forgot password?</button>` : null}
+      <${PrivacyNote} />
+    </main>`;
   }
 
   function ContactField(props) {
@@ -1461,8 +1658,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _g = useState(null), imgStatus = _g[0], setImgStatus = _g[1];
 
     function next() {
-      var c = parseContact(contactRaw);
-      if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
+      if (!props.authEmail) {
+        var c = parseContact(contactRaw);
+        if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
+      }
       if (joinCode.trim().length < 3) { setContactErr('The join code needs at least 3 characters.'); return; }
       setContactErr(null);
       setStep(2);
@@ -1471,14 +1670,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (step === 1) {
       return html`<main className="card">
         <span className="eyebrow">New game · Step 1 of 2</span>
-        <h2 className="h2">Sign up</h2>
+        <h2 className="h2">${props.authEmail ? 'Set up the game' : 'Sign up'}</h2>
         <p className="muted">No game exists here yet. Whoever sets it up becomes the <strong>game creator</strong> —
-          the only person who can approve achievements and finalize the list. Sign up to get started.</p>
-        <${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />
+          the only person who can approve achievements and finalize the list.</p>
+        ${props.authEmail
+          ? null
+          : html`<${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />`}
         <label className="field">
           <span className="field-label">Join code (share this with your group)</span>
           <input className="input input-code" type="text" maxLength="10" value=${joinCode}
             onInput=${function (e) { setJoinCode(e.target.value.toUpperCase()); }} />
+          ${props.authEmail && contactErr ? html`<div className="hint hint-error">${contactErr}</div>` : null}
         </label>
         <${PrivacyNote} />
         <button className="btn btn-primary btn-block" onClick=${next}>Continue</button>
@@ -1510,32 +1712,40 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _g = useState(null), imgStatus = _g[0], setImgStatus = _g[1];
 
     function next() {
-      var c = parseContact(contactRaw);
-      if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
       if (!code.trim()) { setContactErr('Enter the game’s join code.'); return; }
-      setContactErr(null);
-      /* already signed up on another device? go straight back in */
-      if (findByContact(props.players || {}, c.norm)) {
-        props.onJoin({ joinCode: code, contact: c, name: '', avatar: undefined });
-        return;
+      if (!props.authEmail) {
+        var c = parseContact(contactRaw);
+        if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
+        setContactErr(null);
+        /* already signed up on another device? go straight back in */
+        if (findByContact(props.players || {}, c.norm)) {
+          props.onJoin({ joinCode: code, contact: c, name: '', avatar: undefined });
+          return;
+        }
       }
+      setContactErr(null);
       setStep(2);
     }
 
     if (step === 1) {
       return html`<main className="card">
         <span className="eyebrow">Join · Step 1 of 2</span>
-        <h2 className="h2">Sign up</h2>
+        <h2 className="h2">Join the game</h2>
         ${props.phase === 'play'
           ? html`<p className="muted">The achievement list is already locked — you’ll get the list as it stands and start on zero points.</p>`
-          : html`<p className="muted">The group is still drafting achievements. Sign up to suggest your ideas.</p>`}
-        <p className="muted">Already signed up on another device? Enter the same email or number to get your profile back.</p>
+          : html`<p className="muted">The group is still drafting achievements. Join in to suggest your ideas.</p>`}
+        ${props.authEmail
+          ? null
+          : html`<p className="muted">Already signed up on another device? Enter the same email or number to get your profile back.</p>`}
         <label className="field">
           <span className="field-label">Join code</span>
           <input className="input input-code" type="text" maxLength="10" value=${code} placeholder="ABCDE"
             onInput=${function (e) { setCode(e.target.value.toUpperCase()); }} />
+          ${props.authEmail && contactErr ? html`<div className="hint hint-error">${contactErr}</div>` : null}
         </label>
-        <${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />
+        ${props.authEmail
+          ? null
+          : html`<${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />`}
         <${PrivacyNote} />
         <button className="btn btn-primary btn-block" disabled=${props.busy} onClick=${next}>
           ${props.busy ? 'Signing in…' : 'Continue'}
@@ -1568,13 +1778,16 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <${ProfileFields} idHint=${props.me.id} name=${name} avatar=${avatar} imgStatus=${imgStatus}
         onName=${setName} onAvatar=${setAvatar} onImgStatus=${setImgStatus} />
       ${props.me.contact ? html`<div className="contact-line">
-        <span className="field-label">Signed up with</span>
+        <span className="field-label">${MODE === 'firebase' ? 'Logged in as' : 'Signed up with'}</span>
         <span className="contact-value">${props.me.contact.display}</span>
       </div>` : null}
       <button className="btn btn-primary btn-block" disabled=${!name.trim() || props.busy}
         onClick=${function () { props.onSave({ name: name, avatar: avatar }); }}>
         ${props.busy ? 'Saving…' : 'Save changes'}
       </button>
+      ${MODE === 'firebase' ? html`<button className="btn btn-block" disabled=${props.busy} onClick=${props.onLogOut}>
+        Log out
+      </button>` : null}
     </div>`;
   }
 

@@ -2,7 +2,7 @@
 
 A single-file points game for a school group.
 
-- Everyone signs up with an email address or phone number (format-validated only — no verification code is sent), then creates a display name and profile picture. Re-entering the same email/phone on another device signs back into the existing profile. Contact details are shown only to their owner, never to other players.
+- **Accounts.** On the hosted site everyone signs up with an email address and password (Firebase Authentication), then creates a display name and profile picture. Logging in on any other browser or device restores the same profile, points and history — the account, not the device, is the identity. Includes password reset by email and a log out button. Email addresses are shown only to their owner, never to other players.
 - The first person to open it creates the game, sets a join code, and is the only one who can finalize the achievement list.
 - During the draft phase anyone can suggest achievements, but only the creator approves them onto the list (players can edit or withdraw their own pending suggestions); finalizing locks the list permanently and discards unapproved suggestions.
 - In play there are two tabs: a Leaderboard (tap a player to see their profile and every achievement they've ticked off) and an Achievements checklist where players tick and untick what they've completed on the honour system — each achievement counts once, and unticking removes its points. A recent-activity feed sits under the leaderboard.
@@ -44,26 +44,44 @@ Both are generated from the same source; React, ReactDOM, and htm are inlined. W
 
 4. Commit the change. (The config is safe to publish — it identifies the project, it isn't a secret. Access is controlled by database rules.)
 
-### 3. Turn on GitHub Pages
+### 3. Switch on email accounts
+
+In the Firebase console: **Build → Authentication → Get started → Email/Password → Enable → Save**.
+(Leave "Email link / passwordless" off.) Without this the login screen shows a message saying
+email sign-in isn't switched on yet.
+
+Player accounts appear under **Authentication → Users**. You can delete an account there if
+someone needs to start over — their leaderboard entry stays until you clear it from the database.
+
+### 4. Turn on GitHub Pages
 
 1. Repo → **Settings → Pages**.
 2. Under **Build and deployment**: Source = **Deploy from a branch**, Branch = this branch, folder = **/ (root)** → Save.
 3. After a minute the site is live at `https://<user>.github.io/achievements/`. Share that link plus the join code with the group.
 
-### 4. Lock the database rules down a bit
+### 5. Lock the database rules down
 
-Test mode expires after 30 days and is wide open. In **Realtime Database → Rules**, replace with:
+Test mode expires after 30 days and lets anyone read and write. Now that accounts exist, restrict
+the data to logged-in players. In **Realtime Database → Rules**, replace everything with:
 
 ```json
 {
   "rules": {
-    "alg": { ".read": true, ".write": true },
-    "$other": { ".read": false, ".write": false }
+    "alg": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
   }
 }
 ```
 
-This limits the app to its own `alg/` branch and never expires. Note the honest limit of this setup: anyone who has the page URL can technically write to the game data — fine for a classroom honour-system game, but real accounts would need Firebase Authentication.
+Click **Publish**. These rules never expire, and someone who finds the page URL sees only the login
+screen — no game data — unless they have an account.
+
+Honest limit: any logged-in player can write to any part of the game data, so the creator-only
+controls (approving achievements, finalizing) are enforced by the app, not the database. That suits
+an honour-system game for a class. Making it tamper-proof would mean splitting the data per player
+and writing per-path rules — worth doing only if someone actually starts cheating.
 
 ## How storage works
 

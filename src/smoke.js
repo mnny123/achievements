@@ -74,7 +74,7 @@ const path = require('path');
   // Device B: player joins during draft
   const b = await newDevice();
   await step('B: wrong join code rejected at submit', async () => {
-    await b.waitForSelector('text=Sign up', { timeout: 8000 });
+    await b.waitForSelector('text=Join the game', { timeout: 8000 });
     await b.fill('.input-code', 'XXXXX');
     await b.fill(CONTACT, 'ben@example.com');
     await b.click('button:has-text("Continue")');
@@ -194,7 +194,7 @@ const path = require('path');
   // Device D: Ben signs back in on a new device with the same email
   const d = await newDevice();
   await step('D: same email signs back into Ben’s profile', async () => {
-    await d.waitForSelector('text=Sign up');
+    await d.waitForSelector('text=Join the game');
     await d.fill('.input-code', joinCode);
     await d.fill(CONTACT, 'BEN@example.com');
     await d.click('button:has-text("Continue")');
