@@ -4,7 +4,7 @@ const path = require('path');
 (async () => {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const errors = [];
-  const url = 'file://' + path.resolve(__dirname, 'achievement-leaderboard.html');
+  const url = 'file://' + path.resolve(__dirname, '..', 'achievement-leaderboard.html');
   const sharedStore = {};
   const CONTACT = 'input[placeholder="you@example.com or 0400 000 000"]';
   const NAME = 'input[placeholder="e.g. Sam K"]';
