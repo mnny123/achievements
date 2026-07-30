@@ -202,7 +202,13 @@
   .ach-desc { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
   .ach-by { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
   .ach-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
-  .ach-actions { display: flex; gap: 6px; }
+  .ach-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .ach-row-pending { border-style: dashed; }
+  .pending-badge {
+    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; font-style: normal;
+    background: var(--warn-bg); color: var(--warn-text); border-radius: 6px; padding: 2px 7px;
+  }
+  .btn-approve { background: var(--good); border-color: var(--good); color: #fff; }
 
   .log-row {
     width: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: center;
@@ -1022,18 +1028,28 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       });
     }
 
+    /* achievements added before the approval feature count as approved */
+    function achStatus(a) { return a.status || 'approved'; }
+
     async function addOrEditAchievement(data, editId) {
       return withBusy(async function () {
+        var wasPending = false;
         var res = await mutate(KEY_GAME, null, function (g) {
           if (!g) return { __abort: 'The game vanished — tap Refresh.' };
           if (g.phase !== 'draft') return { __abort: 'The list has been finalized — it can’t be changed any more.' };
+          var amCreator = g.creatorId === myId;
           if (editId) {
             var t = g.achievements.find(function (a) { return a.id === editId; });
             if (!t) return { __abort: 'That achievement was deleted by someone else. Refresh to see the latest list.' };
+            if (!amCreator && !(achStatus(t) === 'pending' && t.createdBy === myId)) {
+              return { __abort: 'Only the creator can change approved achievements. You can only edit your own pending suggestions.' };
+            }
             t.title = data.title; t.desc = data.desc; t.points = data.points;
           } else {
+            wasPending = !amCreator;
             g.achievements.push({
               id: uid(), title: data.title, desc: data.desc, points: data.points,
+              status: amCreator ? 'approved' : 'pending',
               createdBy: myId, createdAt: Date.now()
             });
           }
@@ -1041,6 +1057,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         });
         if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
         setGame(res.value);
+        if (wasPending) showToast({ msg: 'Suggestion sent — waiting for the creator’s OK.' });
       });
     }
 
@@ -1049,7 +1066,28 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         var res = await mutate(KEY_GAME, null, function (g) {
           if (!g) return { __abort: 'The game vanished — tap Refresh.' };
           if (g.phase !== 'draft') return { __abort: 'The list has been finalized — it can’t be changed any more.' };
+          var amCreator = g.creatorId === myId;
+          var t = g.achievements.find(function (a) { return a.id === id; });
+          if (t && !amCreator && !(achStatus(t) === 'pending' && t.createdBy === myId)) {
+            return { __abort: 'Only the creator can remove approved achievements. You can only withdraw your own pending suggestions.' };
+          }
           g.achievements = g.achievements.filter(function (a) { return a.id !== id; });
+          return g;
+        });
+        if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
+        setGame(res.value);
+      });
+    }
+
+    async function approveAchievement(id) {
+      return withBusy(async function () {
+        var res = await mutate(KEY_GAME, null, function (g) {
+          if (!g) return { __abort: 'The game vanished — tap Refresh.' };
+          if (g.phase !== 'draft') return { __abort: 'The list has been finalized — it can’t be changed any more.' };
+          if (g.creatorId !== myId) return { __abort: 'Only the game creator can approve suggestions.' };
+          var t = g.achievements.find(function (a) { return a.id === id; });
+          if (!t) return { __abort: 'That suggestion was withdrawn. Refresh to see the latest list.' };
+          t.status = 'approved';
           return g;
         });
         if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
@@ -1063,7 +1101,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           if (!g) return { __abort: 'The game vanished — tap Refresh.' };
           if (g.creatorId !== myId) return { __abort: 'Only the game creator can finalize.' };
           if (g.phase === 'play') return { __abort: 'Already finalized.' };
-          if (!g.achievements.length) return { __abort: 'Add at least one achievement before finalizing.' };
+          var approved = g.achievements.filter(function (a) { return achStatus(a) === 'approved'; });
+          if (!approved.length) return { __abort: 'Approve or add at least one achievement before finalizing.' };
+          g.achievements = approved;
           g.phase = 'play';
           g.finalizedAt = Date.now();
           return g;
@@ -1174,7 +1214,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (game.phase === 'draft') {
       body = html`<${DraftScreen}
         game=${game} players=${players} me=${me} isCreator=${isCreator} busy=${busy}
-        onSave=${addOrEditAchievement} onDelete=${deleteAchievement} onFinalize=${finalizeGame} />`;
+        onSave=${addOrEditAchievement} onDelete=${deleteAchievement}
+        onApprove=${approveAchievement} onFinalize=${finalizeGame} />`;
     } else {
       var myLastLog = null;
       for (var li = logs.length - 1; li >= 0; li--) {
@@ -1333,54 +1374,76 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _a = useState(null), editingId = _a[0], setEditingId = _a[1];
     var _b = useState(null), deletingId = _b[0], setDeletingId = _b[1];
     var _c = useState(false), confirmingFinalize = _c[0], setConfirming = _c[1];
-    var totalPts = game.achievements.reduce(function (s, a) { return s + a.points; }, 0);
     var creator = players[game.creatorId];
     var creatorName = (creator && creator.name) || 'the creator';
 
+    function statusOf(a) { return a.status || 'approved'; }
+    var approved = game.achievements.filter(function (a) { return statusOf(a) === 'approved'; });
+    var pending = game.achievements.filter(function (a) { return statusOf(a) === 'pending'; });
+    var totalPts = approved.reduce(function (s, a) { return s + a.points; }, 0);
+
+    function achRow(a) {
+      var by = players[a.createdBy];
+      var isPending = statusOf(a) === 'pending';
+      /* approved items: creator only; pending items: creator or the player who suggested it */
+      var canModify = props.isCreator || (isPending && a.createdBy === props.me.id);
+      if (editingId === a.id) {
+        return html`<li key=${a.id} className="ach-row ach-row-editing">
+          <${AchievementForm} initial=${a} busy=${props.busy}
+            onSave=${function (data) { props.onSave(data, a.id); setEditingId(null); }}
+            onCancel=${function () { setEditingId(null); }} />
+        </li>`;
+      }
+      return html`<li key=${a.id} className=${'ach-row' + (isPending ? ' ach-row-pending' : '')}>
+        <div className="ach-main">
+          <div className="ach-title">${a.title}</div>
+          ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
+          <div className="ach-by">
+            ${isPending ? 'suggested by ' : 'added by '}${(by && by.name) || 'a former player'}
+            ${isPending && !props.isCreator ? html`<span className="pending-badge">waiting for ${creatorName}’s OK</span>` : null}
+          </div>
+        </div>
+        <div className="ach-side">
+          <${Pts} value=${a.points} />
+          <div className="ach-actions">
+            ${isPending && props.isCreator ? html`<button className="btn btn-mini btn-approve" disabled=${props.busy}
+              onClick=${function () { props.onApprove(a.id); }}>Approve</button>` : null}
+            ${canModify ? html`<button className="btn btn-mini" onClick=${function () { setEditingId(a.id); setDeletingId(null); }}>Edit</button>` : null}
+            ${canModify ? (deletingId === a.id
+              ? html`<button className="btn btn-mini btn-danger" disabled=${props.busy}
+                  onClick=${function () { props.onDelete(a.id); setDeletingId(null); }}>${isPending && props.isCreator ? 'Really decline?' : 'Really delete?'}</button>`
+              : html`<button className="btn btn-mini" onClick=${function () { setDeletingId(a.id); }}>${isPending && props.isCreator ? 'Decline' : isPending ? 'Withdraw' : 'Delete'}</button>`) : null}
+          </div>
+        </div>
+      </li>`;
+    }
+
     return html`<main>
       ${props.isCreator
-        ? html`<div className="status-line status-creator">You’re the game creator. When the list is ready, finalize it below — that locks it for good and starts the game.</div>`
-        : html`<div className="status-line">The achievement list is still open — ${creatorName} hasn’t finalized it yet. Add your ideas!</div>`}
+        ? html`<div className="status-line status-creator">You’re the game creator. Approve or decline suggestions, and when the list is ready, finalize it below — that locks it for good and starts the game.</div>`
+        : html`<div className="status-line">The achievement list is still open — ${creatorName} hasn’t finalized it yet. Suggest your ideas; ${creatorName} gives each one the OK before it joins the list.</div>`}
+
+      ${pending.length ? html`<section className="card">
+        <span className="eyebrow">${props.isCreator ? 'Needs your OK' : 'Waiting for the OK'}</span>
+        <h2 className="h2">Suggestions <span className="count-chip">${pending.length}</span></h2>
+        ${props.isCreator ? html`<p className="muted">Approve to put a suggestion on the list, or decline to drop it.</p>` : null}
+        <ul className="ach-list">${pending.map(achRow)}</ul>
+      </section>` : null}
 
       <section className="card">
-        <span className="eyebrow">Draft list</span>
-        <h2 className="h2">Achievements <span className="count-chip">${game.achievements.length}</span></h2>
-        ${game.achievements.length === 0
-          ? html`<p className="muted">Nothing yet. Add the first achievement below.</p>`
-          : html`<ul className="ach-list">
-            ${game.achievements.map(function (a) {
-              var by = players[a.createdBy];
-              if (editingId === a.id) {
-                return html`<li key=${a.id} className="ach-row ach-row-editing">
-                  <${AchievementForm} initial=${a} busy=${props.busy}
-                    onSave=${function (data) { props.onSave(data, a.id); setEditingId(null); }}
-                    onCancel=${function () { setEditingId(null); }} />
-                </li>`;
-              }
-              return html`<li key=${a.id} className="ach-row">
-                <div className="ach-main">
-                  <div className="ach-title">${a.title}</div>
-                  ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
-                  <div className="ach-by">added by ${(by && by.name) || 'a former player'}</div>
-                </div>
-                <div className="ach-side">
-                  <${Pts} value=${a.points} />
-                  <div className="ach-actions">
-                    <button className="btn btn-mini" onClick=${function () { setEditingId(a.id); setDeletingId(null); }}>Edit</button>
-                    ${deletingId === a.id
-                      ? html`<button className="btn btn-mini btn-danger" disabled=${props.busy}
-                          onClick=${function () { props.onDelete(a.id); setDeletingId(null); }}>Really delete?</button>`
-                      : html`<button className="btn btn-mini" onClick=${function () { setDeletingId(a.id); }}>Delete</button>`}
-                  </div>
-                </div>
-              </li>`;
-            })}
-          </ul>`}
+        <span className="eyebrow">The list</span>
+        <h2 className="h2">Achievements <span className="count-chip">${approved.length}</span></h2>
+        ${approved.length === 0
+          ? html`<p className="muted">${props.isCreator ? 'Nothing on the list yet. Add achievements below, or approve suggestions as they come in.' : 'Nothing approved yet. Suggest the first achievement below!'}</p>`
+          : html`<ul className="ach-list">${approved.map(achRow)}</ul>`}
       </section>
 
       <section className="card">
         <span className="eyebrow">Contribute</span>
-        <h2 className="h2">Add an achievement</h2>
+        <h2 className="h2">${props.isCreator ? 'Add an achievement' : 'Suggest an achievement'}</h2>
+        ${props.isCreator
+          ? null
+          : html`<p className="muted">Your idea goes to ${creatorName} for an OK before it joins the list.</p>`}
         <${AchievementForm} busy=${props.busy} onSave=${function (data) { props.onSave(data, null); }} />
       </section>
 
@@ -1388,14 +1451,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <span className="eyebrow">Creator only</span>
         <h2 className="h2">Finalize the list</h2>
         <div className="summary-row">
-          <div className="summary-stat"><div className="summary-num">${game.achievements.length}</div><div className="summary-label">achievements</div></div>
+          <div className="summary-stat"><div className="summary-num">${approved.length}</div><div className="summary-label">achievements</div></div>
           <div className="summary-stat"><div className="summary-num">${fmtPts(totalPts)}</div><div className="summary-label">points per full sweep</div></div>
         </div>
         <p className="muted">Review the full list above. Finalizing is <strong>permanent</strong>: nobody — including you —
           can add, edit or remove achievements or change point values afterwards.</p>
+        ${pending.length ? html`<p className="muted"><strong>${pending.length}</strong> suggestion${pending.length === 1 ? ' is' : 's are'} still waiting for your OK — finalizing now discards ${pending.length === 1 ? 'it' : 'them'}.</p>` : null}
         ${confirmingFinalize
           ? html`<div className="confirm-box">
-              <p><strong>Lock the list forever and start the game?</strong></p>
+              <p><strong>Lock the list forever and start the game?</strong>${pending.length ? ' Unapproved suggestions will be discarded.' : ''}</p>
               <div className="form-actions">
                 <button className="btn btn-secondary" onClick=${function () { setConfirming(false); }}>Cancel</button>
                 <button className="btn btn-primary" disabled=${props.busy} onClick=${props.onFinalize}>
@@ -1403,7 +1467,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
                 </button>
               </div>
             </div>`
-          : html`<button className="btn btn-primary btn-block" disabled=${game.achievements.length === 0}
+          : html`<button className="btn btn-primary btn-block" disabled=${approved.length === 0}
               onClick=${function () { setConfirming(true); }}>Finalize…</button>`}
       </section>` : null}
     </main>`;
