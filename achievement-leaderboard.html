@@ -73,7 +73,6 @@
   button { font: inherit; color: inherit; }
 
   .shell { max-width: 520px; margin: 0 auto; padding: 0 14px 40px; }
-  .shell.has-tabbar { padding-bottom: 96px; }
   .center-screen {
     min-height: 70vh; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px; text-align: center;
@@ -145,7 +144,7 @@
   .btn-mini { min-height: 36px; padding: 6px 12px; font-size: 13px; border-radius: 9px; }
   .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .btn-approve { background: var(--good); border-color: var(--good); color: var(--good-ink); }
-  .btn:focus-visible, .tab:focus-visible, .board-row:focus-visible, .log-row:focus-visible,
+  .btn:focus-visible, .seg-btn:focus-visible, .board-row:focus-visible, .log-row:focus-visible,
   .photo-target:focus-visible, .link-btn:focus-visible {
     outline: 2px solid var(--ink); outline-offset: 2px;
   }
@@ -303,19 +302,27 @@
   .feed-main { flex: 1; min-width: 0; font-size: 14.5px; }
   .feed-time { font-size: 12.5px; color: var(--muted); }
 
-  /* ---------- tab bar ---------- */
-  .tabbar {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-    display: flex; justify-content: center; gap: 6px;
-    background: var(--surface); border-top: 1px solid var(--line);
-    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+  /* ---------- top tabs ---------- */
+  .segmented {
+    display: flex; gap: 4px; margin: 14px 0 0;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 13px; padding: 4px;
   }
-  .tab {
-    flex: 1; max-width: 118px; min-height: 48px; border: none; background: none; cursor: pointer;
-    display: grid; place-items: center;
-    font-size: 13.5px; font-weight: 600; color: var(--muted); border-radius: 11px;
+  .seg-btn {
+    flex: 1; min-height: 46px; border: none; background: none; cursor: pointer;
+    font-size: 14.5px; font-weight: 600; color: var(--muted); border-radius: 10px;
   }
-  .tab-active { color: var(--accent-ink); background: var(--accent); }
+  .seg-btn-active { background: var(--accent); color: var(--accent-ink); }
+
+  /* ---------- checklist ---------- */
+  .check {
+    width: 26px; height: 26px; border: 2px solid var(--line); border-radius: 8px;
+    display: grid; place-items: center; flex-shrink: 0; background: var(--surface);
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .check-on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .log-row-done { background: var(--surface-2); }
+  .summary-of { font-size: 0.6em; font-weight: 600; color: var(--muted); }
 
   /* ---------- sheet & toast ---------- */
   .sheet-backdrop {
@@ -339,7 +346,7 @@
 
   .toast {
     position: fixed; left: 50%; transform: translateX(-50%);
-    bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 50;
+    bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 50;
     display: flex; align-items: center; gap: 14px;
     background: var(--ink); color: var(--bg);
     border-radius: 999px; padding: 12px 20px; font-weight: 600; font-size: 14px;
@@ -979,14 +986,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     var scores = useMemo(function () {
       var totals = {};
-      var counts = {};
+      var done = {};
       logs.forEach(function (lg) {
         var a = achById[lg.achId];
         if (!a) return;
+        if (!done[lg.playerId]) done[lg.playerId] = {};
+        if (done[lg.playerId][lg.achId]) return; /* count each achievement once per player */
+        done[lg.playerId][lg.achId] = true;
         totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points;
-        counts[lg.playerId] = (counts[lg.playerId] || 0) + 1;
       });
-      return { totals: totals, counts: counts };
+      var counts = {};
+      Object.keys(done).forEach(function (pid) { counts[pid] = Object.keys(done[pid]).length; });
+      return { totals: totals, counts: counts, done: done };
     }, [logs, achById]);
 
     var ranking = useMemo(function () {
@@ -1187,42 +1198,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       });
     }
 
-    async function logAchievement(ach) {
+    /* tick = mark done (+points), untick = take it back off */
+    async function toggleAchievement(ach) {
       return withBusy(async function () {
-        var entry = { id: uid(), playerId: myId, achId: ach.id, at: Date.now() };
+        var ticked = { current: false };
         var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
-          d.logs.push(entry);
-          return d;
-        });
-        if (!res.ok) { setErrorBanner('Couldn’t save that log: ' + res.error); return; }
-        setLogs(res.value.logs);
-        showToast({ msg: '“' + ach.title + '” logged — +' + fmtPts(ach.points) + ' pts', undoId: entry.id });
-      });
-    }
-
-    async function undoLog(logId) {
-      return withBusy(async function () {
-        var removedRef = { current: null };
-        var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
-          var idx = -1;
-          if (logId) {
-            idx = d.logs.findIndex(function (lg) { return lg.id === logId; });
-            if (idx >= 0 && d.logs[idx].playerId !== myId) idx = -1;
+          var mine = function (lg) { return lg.playerId === myId && lg.achId === ach.id; };
+          if (d.logs.some(mine)) {
+            d.logs = d.logs.filter(function (lg) { return !mine(lg); });
           } else {
-            for (var i = d.logs.length - 1; i >= 0; i--) {
-              if (d.logs[i].playerId === myId) { idx = i; break; }
-            }
+            ticked.current = true;
+            d.logs.push({ id: uid(), playerId: myId, achId: ach.id, at: Date.now() });
           }
-          if (idx < 0) return { __abort: 'Nothing of yours to undo.' };
-          removedRef.current = d.logs[idx];
-          d.logs.splice(idx, 1);
           return d;
         });
-        if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
+        if (!res.ok) { setErrorBanner('Couldn’t save that: ' + res.error); return; }
         setLogs(res.value.logs);
-        setToast(null);
-        var a = removedRef.current && achById[removedRef.current.achId];
-        showToast({ msg: a ? 'Removed “' + a.title + '” — −' + fmtPts(a.points) + ' pts' : 'Log removed.' });
+        showToast({
+          msg: ticked.current
+            ? '“' + ach.title + '” ticked — +' + fmtPts(ach.points) + ' pts'
+            : '“' + ach.title + '” unticked — −' + fmtPts(ach.points) + ' pts'
+        });
       });
     }
 
@@ -1289,27 +1285,23 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         onSave=${addOrEditAchievement} onDelete=${deleteAchievement}
         onApprove=${approveAchievement} onFinalize=${finalizeGame} />`;
     } else {
-      var myLastLog = null;
-      for (var li = logs.length - 1; li >= 0; li--) {
-        if (logs[li].playerId === myId) { myLastLog = logs[li]; break; }
-      }
       body = html`<${React.Fragment}>
-        ${tab === 'board' ? html`<${BoardTab} ranking=${ranking} myId=${myId} game=${game} onOpen=${setStatsFor} />` : null}
-        ${tab === 'log' ? html`<${LogTab} game=${game} busy=${busy} myLastLog=${myLastLog} achById=${achById}
-          onLog=${logAchievement} onUndo=${function () { undoLog(null); }} />` : null}
-        ${tab === 'feed' ? html`<${FeedTab} logs=${logs} players=${players} achById=${achById} />` : null}
-        ${tab === 'me' ? html`<${StatsView} player=${me} logs=${logs} achById=${achById} scores=${scores}
-          isMe=${true} onEdit=${function () { setEditingProfile(true); }} />` : null}
-        <nav className="tabbar">
-          ${[['board', 'Board'], ['log', 'Log'], ['feed', 'Feed'], ['me', 'Me']].map(function (t) {
-            return html`<button key=${t[0]} className=${'tab' + (tab === t[0] ? ' tab-active' : '')}
+        <nav className="segmented" role="tablist">
+          ${[['board', 'Leaderboard'], ['ach', 'Achievements']].map(function (t) {
+            return html`<button key=${t[0]} role="tab" aria-selected=${tab === t[0]}
+              className=${'seg-btn' + (tab === t[0] ? ' seg-btn-active' : '')}
               onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
           })}
         </nav>
+        ${tab === 'ach'
+          ? html`<${AchievementsTab} game=${game} busy=${busy} myDone=${scores.done[myId] || {}}
+              myPoints=${scores.totals[myId] || 0} onToggle=${toggleAchievement} />`
+          : html`<${BoardTab} ranking=${ranking} myId=${myId} game=${game} onOpen=${setStatsFor}
+              logs=${logs} players=${players} achById=${achById} />`}
       <//>`;
     }
 
-    return html`<div className=${'shell' + (game.phase === 'play' ? ' has-tabbar' : '')}>
+    return html`<div className="shell">
       ${headerBar}${banners}
       ${body}
       ${statsFor ? html`<${Sheet} onClose=${function () { setStatsFor(null); }}>
@@ -1614,6 +1606,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* ---------------- play phase tabs ---------------- */
   function BoardTab(props) {
+    var recent = props.logs.slice(-25).reverse();
     return html`<main>
       <section className="card">
         <span className="eyebrow">Standings</span>
@@ -1636,66 +1629,56 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             </li>`;
           })}
         </ol>
-        <p className="hint">Tap a player to see their full stats.</p>
+        <p className="hint">Tap a player to see their profile and every achievement they’ve ticked off.</p>
       </section>
-    </main>`;
-  }
-
-  function LogTab(props) {
-    var lastAch = props.myLastLog ? props.achById[props.myLastLog.achId] : null;
-    return html`<main>
-      <section className="card">
-        <span className="eyebrow">Honour system — one tap logs it</span>
-        <h2 className="h2">Log an achievement</h2>
-        <p className="muted">Tap anything you’ve done. Repeats are fine — every log adds its points again.</p>
-        <ul className="ach-list">
-          ${props.game.achievements.map(function (a) {
-            return html`<li key=${a.id}>
-              <button className="log-row" disabled=${props.busy} onClick=${function () { props.onLog(a); }}>
-                <div className="ach-main">
-                  <div className="ach-title">${a.title}</div>
-                  ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
-                </div>
-                <${Pts} value=${a.points} plus=${true} big=${true} />
-              </button>
-            </li>`;
-          })}
-        </ul>
-      </section>
-      ${lastAch ? html`<section className="card">
-        <div className="undo-row">
-          <div>
-            <div className="field-label">My most recent log</div>
-            <div>“${lastAch.title}” · ${timeAgo(props.myLastLog.at)}</div>
-          </div>
-          <button className="btn btn-secondary" disabled=${props.busy} onClick=${props.onUndo}>Undo it</button>
-        </div>
-      </section>` : null}
-    </main>`;
-  }
-
-  function FeedTab(props) {
-    var recent = props.logs.slice(-50).reverse();
-    return html`<main>
       <section className="card">
         <span className="eyebrow">Recent activity</span>
-        <h2 className="h2">Feed</h2>
-        ${recent.length === 0 ? html`<p className="muted">No logs yet — be the first on the board.</p>` : null}
-        <ul className="feed">
+        ${recent.length === 0 ? html`<p className="muted" style=${{ marginTop: '8px' }}>Nothing ticked off yet — be the first on the board.</p>` : null}
+        <ul className="feed" style=${{ marginTop: '10px' }}>
           ${recent.map(function (lg) {
             var p = props.players[lg.playerId];
             var a = props.achById[lg.achId];
             return html`<li key=${lg.id} className="feed-row">
               <${Avatar} player=${p} size=${36} />
               <div className="feed-main">
-                <div><strong>${(p && p.name) || 'A former player'}</strong> logged “${(a && a.title) || 'an achievement'}”</div>
+                <div><strong>${(p && p.name) || 'A former player'}</strong> ticked off “${(a && a.title) || 'an achievement'}”</div>
                 <div className="feed-time">${timeAgo(lg.at)}</div>
               </div>
               ${a ? html`<${Pts} value=${a.points} plus=${true} />` : null}
             </li>`;
           })}
         </ul>
-        ${props.logs.length > 50 ? html`<p className="hint">Showing the latest 50 of ${props.logs.length} logs.</p>` : null}
+      </section>
+    </main>`;
+  }
+
+  function AchievementsTab(props) {
+    var total = props.game.achievements.length;
+    var doneCount = props.game.achievements.filter(function (a) { return props.myDone[a.id]; }).length;
+    return html`<main>
+      <section className="card">
+        <span className="eyebrow">Honour system — tick what you’ve done</span>
+        <h2 className="h2">Achievements</h2>
+        <p className="muted">You’ve ticked ${doneCount} of ${total} · ${fmtPts(props.myPoints)} pts. Tap to tick, tap again to untick.</p>
+        <ul className="ach-list">
+          ${props.game.achievements.map(function (a) {
+            var done = !!props.myDone[a.id];
+            return html`<li key=${a.id}>
+              <button className=${'log-row' + (done ? ' log-row-done' : '')} disabled=${props.busy}
+                role="checkbox" aria-checked=${done}
+                onClick=${function () { props.onToggle(a); }}>
+                <span className=${'check' + (done ? ' check-on' : '')} aria-hidden="true">
+                  ${done ? html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : null}
+                </span>
+                <div className="ach-main">
+                  <div className="ach-title">${a.title}</div>
+                  ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
+                </div>
+                <${Pts} value=${a.points} big=${done} />
+              </button>
+            </li>`;
+          })}
+        </ul>
       </section>
     </main>`;
   }
@@ -1704,14 +1687,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   function StatsView(props) {
     var p = props.player;
     if (!p) return html`<p className="muted">This player is no longer in the game.</p>`;
-    var myLogs = props.logs.filter(function (lg) { return lg.playerId === p.id; });
-    var breakdown = {};
-    myLogs.forEach(function (lg) { breakdown[lg.achId] = (breakdown[lg.achId] || 0) + 1; });
-    var rows = Object.keys(breakdown).map(function (achId) {
+    var when = {};
+    props.logs.forEach(function (lg) {
+      if (lg.playerId === p.id && !when[lg.achId]) when[lg.achId] = lg.at;
+    });
+    var doneSet = props.scores.done[p.id] || {};
+    var rows = Object.keys(doneSet).map(function (achId) {
       var a = props.achById[achId];
-      return a ? { title: a.title, count: breakdown[achId], pts: a.points * breakdown[achId] } : null;
-    }).filter(Boolean).sort(function (x, y) { return y.pts - x.pts; });
+      return a ? { title: a.title, pts: a.points, at: when[achId] } : null;
+    }).filter(Boolean).sort(function (x, y) { return (y.at || 0) - (x.at || 0); });
     var total = props.scores.totals[p.id] || 0;
+    var totalAch = Object.keys(props.achById).length;
     return html`<main>
       <section className="card">
         <div className="stats-head">
@@ -1725,15 +1711,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         </div>
         <div className="summary-row">
           <div className="summary-stat"><div className="summary-num">${fmtPts(total)}</div><div className="summary-label">total points</div></div>
-          <div className="summary-stat"><div className="summary-num">${myLogs.length}</div><div className="summary-label">logs</div></div>
+          <div className="summary-stat"><div className="summary-num">${rows.length}<span className="summary-of">/${totalAch}</span></div><div className="summary-label">ticked off</div></div>
         </div>
-        <h3 className="h3">Breakdown</h3>
-        ${rows.length === 0 ? html`<p className="muted">No achievements logged yet.</p>` : null}
+        <h3 className="h3">Achievements ticked off</h3>
+        ${rows.length === 0 ? html`<p className="muted">Nothing ticked off yet.</p>` : null}
         <ul className="breakdown">
           ${rows.map(function (r) {
             return html`<li key=${r.title} className="breakdown-row">
               <span className="breakdown-title">${r.title}</span>
-              <span className="breakdown-count">×${r.count}</span>
+              ${r.at ? html`<span className="breakdown-count">${timeAgo(r.at)}</span>` : null}
               <${Pts} value=${r.pts} />
             </li>`;
           })}
