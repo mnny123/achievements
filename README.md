@@ -6,7 +6,7 @@ A single-file points game for a school group.
 - **Accounts.** On the hosted site everyone signs up with an email address and password (Firebase Authentication), then creates a display name and profile picture. Logging in on any other browser or device restores the same profile, points and history — the account, not the device, is the identity. Includes password reset by email and a log out button. Email addresses are shown only to their owner, never to other players.
 - The first person to open it creates the game, sets a join code, and is the only one who can finalize the achievement list.
 - During the draft phase anyone can suggest achievements, but only the creator approves them onto the list (players can edit or withdraw their own pending suggestions); finalizing locks the list permanently and discards unapproved suggestions.
-- In play there are two tabs: a Leaderboard (tap a player to see their profile and every achievement they've ticked off) and an Achievements checklist where players tick and untick what they've completed on the honour system — each achievement counts once, and unticking removes its points. A recent-activity feed sits under the leaderboard.
+- **Two tabs in every phase.** *Leaderboard* lists every player with their profile picture — while the list is being drafted it is a roster with everyone on zero, newest joiner first; once finalized it ranks by points and gains a recent-activity feed. Tapping a player opens their profile and every achievement they've ticked off. *Achievements* is the draft/approval list before finalizing and a tick-and-untick checklist after — each achievement counts once, and unticking removes its points. The tab shown by default follows the phase.
 
 ## Files
 

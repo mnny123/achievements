@@ -351,7 +351,8 @@
     var _n = useState(MODE !== 'firebase'), authReady = _n[0], setAuthReady = _n[1];
     var _f = useState(false), refreshing = _f[0], setRefreshing = _f[1];
     var _g = useState(null), errorBanner = _g[0], setErrorBanner = _g[1];
-    var _h = useState('board'), tab = _h[0], setTab = _h[1];
+    /* null until someone taps a tab, so the default can follow the phase */
+    var _h = useState(null), pickedTab = _h[0], setTab = _h[1];
     var _i = useState(null), statsFor = _i[0], setStatsFor = _i[1];
     var _j = useState(false), editingProfile = _j[0], setEditingProfile = _j[1];
     var _k = useState(null), toast = _k[0], setToast = _k[1];
@@ -464,10 +465,23 @@
       return { totals: totals, counts: counts, done: done };
     }, [logs, achById]);
 
+    var isDraft = !!(game && game.phase === 'draft');
+    /* while drafting, the achievements tab is where the work is; once the
+       list is locked, the leaderboard is */
+    var tab = pickedTab || (isDraft ? 'ach' : 'board');
+
     var ranking = useMemo(function () {
       var list = Object.keys(players).map(function (id) {
         return { player: players[id], points: scores.totals[id] || 0, logs: scores.counts[id] || 0 };
       });
+      /* before the list is final nobody can score, so show the roster
+         newest-first instead of pretending it is a ranking */
+      if (isDraft) {
+        list.forEach(function (r) { r.points = 0; r.logs = 0; });
+        list.sort(function (a, b) { return (b.player.joinedAt || 0) - (a.player.joinedAt || 0); });
+        list.forEach(function (r, i) { r.rank = i + 1; });
+        return list;
+      }
       list.sort(function (a, b) {
         return (b.points - a.points) || a.player.name.localeCompare(b.player.name);
       });
@@ -477,7 +491,7 @@
         row.rank = rank;
       });
       return list;
-    }, [players, scores]);
+    }, [players, scores, isDraft]);
 
     /* ------------ mutations ------------ */
     async function withBusy(fn) {
@@ -576,7 +590,6 @@
         if (!pr.ok) { setErrorBanner('Joining failed: ' + pr.error); return; }
         setGame(fresh.value);
         setErrorBanner(null);
-        setTab('board');
       });
     }
 
@@ -811,28 +824,26 @@
       </div>`;
     }
 
-    var body;
-    if (game.phase === 'draft') {
-      body = html`<${DraftScreen}
-        game=${game} players=${players} me=${me} isCreator=${isCreator} busy=${busy}
-        onSave=${addOrEditAchievement} onDelete=${deleteAchievement}
-        onApprove=${approveAchievement} onFinalize=${finalizeGame} />`;
-    } else {
-      body = html`<${React.Fragment}>
-        <nav className="segmented" role="tablist">
-          ${[['board', 'Leaderboard'], ['ach', 'Achievements']].map(function (t) {
-            return html`<button key=${t[0]} role="tab" aria-selected=${tab === t[0]}
-              className=${'seg-btn' + (tab === t[0] ? ' seg-btn-active' : '')}
-              onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
-          })}
-        </nav>
-        ${tab === 'ach'
-          ? html`<${AchievementsTab} game=${game} busy=${busy} myDone=${scores.done[myId] || {}}
-              myPoints=${scores.totals[myId] || 0} onToggle=${toggleAchievement} />`
-          : html`<${BoardTab} ranking=${ranking} myId=${myId} game=${game} onOpen=${setStatsFor}
-              logs=${logs} players=${players} achById=${achById} />`}
-      <//>`;
-    }
+    /* both tabs exist in every phase; only the Achievements tab changes shape */
+    var body = html`<${React.Fragment}>
+      <nav className="segmented" role="tablist">
+        ${[['board', 'Leaderboard'], ['ach', 'Achievements']].map(function (t) {
+          return html`<button key=${t[0]} role="tab" aria-selected=${tab === t[0]}
+            className=${'seg-btn' + (tab === t[0] ? ' seg-btn-active' : '')}
+            onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
+        })}
+      </nav>
+      ${tab === 'ach'
+        ? (isDraft
+          ? html`<${DraftScreen}
+              game=${game} players=${players} me=${me} isCreator=${isCreator} busy=${busy}
+              onSave=${addOrEditAchievement} onDelete=${deleteAchievement}
+              onApprove=${approveAchievement} onFinalize=${finalizeGame} />`
+          : html`<${AchievementsTab} game=${game} busy=${busy} myDone=${scores.done[myId] || {}}
+              myPoints=${scores.totals[myId] || 0} onToggle=${toggleAchievement} />`)
+        : html`<${BoardTab} ranking=${ranking} myId=${myId} game=${game} onOpen=${setStatsFor}
+            logs=${logs} players=${players} achById=${achById} isDraft=${isDraft} />`}
+    <//>`;
 
     return html`<div className="shell">
       ${headerBar}${banners}
@@ -1270,10 +1281,18 @@
   /* ---------------- play phase tabs ---------------- */
   function BoardTab(props) {
     var recent = props.logs.slice(-25).reverse();
+    var isDraft = props.isDraft;
     return html`<main>
       <section className="card">
-        <span className="eyebrow">Standings</span>
-        <h2 className="h2">Leaderboard</h2>
+        <span className="eyebrow">${isDraft ? 'Who’s playing' : 'Standings'}</span>
+        <h2 className="h2">
+          ${isDraft ? 'Players' : 'Leaderboard'}
+          <span className="count-chip">${props.ranking.length}</span>
+        </h2>
+        ${isDraft
+          ? html`<p className="muted">Scoring starts when the achievement list is finalized, so everyone is on zero.
+              Newest players are at the top.</p>`
+          : null}
         ${props.ranking.length === 0 ? html`<p className="muted">Nobody has joined yet.</p>` : null}
         <ol className="board">
           ${props.ranking.map(function (row) {
@@ -1281,20 +1300,25 @@
             return html`<li key=${row.player.id}>
               <button className=${'board-row' + (isMe ? ' board-row-me' : '')}
                 onClick=${function () { props.onOpen(row.player.id); }}>
-                <span className=${'board-rank' + (row.rank <= 3 && row.points > 0 ? ' board-rank-top' : '')}>${row.rank}</span>
-                <${Avatar} player=${row.player} size=${44} />
+                ${isDraft
+                  ? null
+                  : html`<span className=${'board-rank' + (row.rank <= 3 && row.points > 0 ? ' board-rank-top' : '')}>${row.rank}</span>`}
+                <${Avatar} player=${row.player} size=${48} />
                 <span className="board-name">
-                  ${row.player.name}${isMe ? html`<span className="me-tag"> (you)</span>` : null}
-                  ${props.game.creatorId === row.player.id ? html`<span className="creator-tag">creator</span>` : null}
+                  <span className="board-name-line">
+                    <span className="board-name-text">${row.player.name}${isMe ? html`<span className="me-tag"> (you)</span>` : null}</span>
+                    ${props.game.creatorId === row.player.id ? html`<span className="creator-tag">creator</span>` : null}
+                  </span>
+                  ${isDraft ? html`<span className="board-sub">joined ${timeAgo(row.player.joinedAt)}</span>` : null}
                 </span>
-                <${Pts} value=${row.points} big=${true} />
+                <${Pts} value=${row.points} big=${!isDraft} />
               </button>
             </li>`;
           })}
         </ol>
-        <p className="hint">Tap a player to see their profile and every achievement they’ve ticked off.</p>
+        <p className="hint">Tap a player to see their profile${isDraft ? '.' : ' and every achievement they’ve ticked off.'}</p>
       </section>
-      <section className="card">
+      ${isDraft ? null : html`<section className="card">
         <span className="eyebrow">Recent activity</span>
         ${recent.length === 0 ? html`<p className="muted" style=${{ marginTop: '8px' }}>Nothing ticked off yet — be the first on the board.</p>` : null}
         <ul className="feed" style=${{ marginTop: '10px' }}>
@@ -1311,7 +1335,7 @@
             </li>`;
           })}
         </ul>
-      </section>
+      </section>`}
     </main>`;
   }
 

@@ -191,6 +191,28 @@ const path = require('path');
     await b.click('button:has-text("Join game")');
     await b.waitForSelector('text=hasn’t finalized it yet');
   });
+  await step('DRAFT BOARD: both tabs, all players, zero points, newest first', async () => {
+    // Ada joined first, Ben second -> Ben on top while drafting
+    await a.click('.seg-btn:has-text("Leaderboard")');
+    await a.waitForSelector('.board-row:has-text("Ben")', { timeout: 6000 });
+    const rows = await a.locator('.board-row').allTextContents();
+    if (rows.length !== 2) throw new Error('expected both players, got ' + rows.length);
+    if (!/Ben/.test(rows[0]) || !/Ada/.test(rows[1])) throw new Error('not newest-first: ' + JSON.stringify(rows));
+    if (!rows.every(r => /0\s*pts/.test(r))) throw new Error('someone has points during draft: ' + JSON.stringify(rows));
+    if (await a.locator('.board-rank').count() > 0) throw new Error('rank numbers shown before scoring starts');
+    if (await a.locator('.board .avatar').count() !== 2) throw new Error('missing profile pictures');
+    await a.waitForSelector('text=Scoring starts when the achievement list is finalized');
+    // the draft list is still reachable from the other tab
+    await a.click('.seg-btn:has-text("Achievements")');
+    await a.waitForSelector('text=You’re the game creator');
+  });
+  await step('DRAFT BOARD: player sees the same roster', async () => {
+    await b.click('.seg-btn:has-text("Leaderboard")');
+    await b.waitForSelector('.board-row:has-text("Ada")', { timeout: 6000 });
+    if (await b.locator('.board-row').count() !== 2) throw new Error('player sees a different roster');
+    await b.click('.seg-btn:has-text("Achievements")');
+    await b.waitForSelector('text=hasn’t finalized it yet');
+  });
   await step('A: approve + finalize; B flips live', async () => {
     await b.fill('input[placeholder="e.g. Aced the spelling quiz"]', 'Tidy desk');
     await b.fill('input[type="number"]', '5');
@@ -199,7 +221,7 @@ const path = require('path');
     await a.click('.ach-row-pending:has-text("Tidy desk") >> text=Approve');
     await a.click('text=Finalize…');
     await a.click('text=Yes, finalize');
-    await b.waitForSelector('.seg-btn:has-text("Leaderboard")', { timeout: 6000 });
+    await b.waitForSelector('.log-row', { timeout: 6000 });  // draft list becomes the tickable checklist
   });
   await step('B ticks; A board updates live to 10', async () => {
     await b.click('.seg-btn:has-text("Achievements")');
