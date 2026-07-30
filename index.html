@@ -318,6 +318,18 @@
     border-radius: 12px; padding: 28px 20px; color: var(--muted);
   }
   .feed-empty-title { font-weight: 700; font-size: 15.5px; color: var(--ink); margin-bottom: 4px; }
+  .tabs-row { display: flex; gap: 8px; align-items: stretch; margin: 14px 0 0; }
+  .tabs-row .segmented { flex: 1; margin: 0; }
+  .contrib-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0; border-radius: 13px; padding: 6px 14px; min-width: 88px;
+  }
+  .contrib-btn-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--muted);
+  }
+  .contrib-btn-amt { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .contrib-input { max-width: 160px; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .pool-card { text-align: center; }
   .pool-num {
     font-size: 42px; font-weight: 800; letter-spacing: -0.03em;
@@ -1189,6 +1201,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _h = useState(null), pickedTab = _h[0], setTab = _h[1];
     var _i = useState(null), statsFor = _i[0], setStatsFor = _i[1];
     var _j = useState(false), editingProfile = _j[0], setEditingProfile = _j[1];
+    var _j2 = useState(false), showContribution = _j2[0], setShowContribution = _j2[1];
+    var promptedContrib = useRef(false);
     var _k = useState(null), toast = _k[0], setToast = _k[1];
     var _l = useState(false), busy = _l[0], setBusy = _l[1];
     var toastTimer = useRef(null);
@@ -1296,8 +1310,18 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     }, [logs]);
 
     /* with accounts, the Firebase uid *is* the player id */
+
     var myId = MODE === 'firebase' ? ((authUser && authUser.uid) || null) : localId;
     var me = myId && players[myId] ? players[myId] : null;
+
+    /* every player is asked once what they're pitching into the pool */
+    useEffect(function () {
+      if (!game || !me) return;
+      if (me.contribution == null && !promptedContrib.current) {
+        promptedContrib.current = true;
+        setShowContribution(true);
+      }
+    }, [game, me]);
     var isCreator = !!(me && game && game.creatorId === me.id);
 
     var achById = useMemo(function () {
@@ -1392,6 +1416,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         name: profile.name,
         avatar: profile.avatar !== undefined ? profile.avatar : (existing.avatar || null),
         contact: profile.contact || existing.contact || null,
+        contribution: profile.contribution !== undefined ? profile.contribution
+          : (existing.contribution !== undefined ? existing.contribution : null),
         joinedAt: existing.joinedAt || Date.now(),
         updatedAt: Date.now()
       };
@@ -1496,6 +1522,15 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       } catch (err) {
         setErrorBanner('Couldn’t log out: ' + authMessage(err));
       }
+    }
+
+    async function saveContribution(amount) {
+      return withBusy(async function () {
+        var pr = await saveProfile({ id: myId, name: me.name, avatar: undefined, contribution: amount }, false);
+        if (!pr.ok) { setErrorBanner('Saving your contribution failed: ' + pr.error); return; }
+        setShowContribution(false);
+        showToast({ msg: 'You\u2019re in for $' + fmtPts(amount) + ' \u2014 pool updated.' });
+      });
     }
 
     async function updateMyProfile(form) {
@@ -1811,13 +1846,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
     /* both tabs exist in every phase; only the Achievements tab changes shape */
     var body = html`<${React.Fragment}>
-      <nav className="segmented" role="tablist">
-        ${[['board', 'Leaderboard'], ['ach', 'Achievements']].map(function (t) {
-          return html`<button key=${t[0]} role="tab" aria-selected=${tab === t[0]}
-            className=${'seg-btn' + (tab === t[0] ? ' seg-btn-active' : '')}
-            onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
-        })}
-      </nav>
+      <div className="tabs-row">
+        <nav className="segmented" role="tablist">
+          ${[['board', 'Leaderboard'], ['ach', 'Achievements']].map(function (t) {
+            return html`<button key=${t[0]} role="tab" aria-selected=${tab === t[0]}
+              className=${'seg-btn' + (tab === t[0] ? ' seg-btn-active' : '')}
+              onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
+          })}
+        </nav>
+        <button className="btn contrib-btn" onClick=${function () { setShowContribution(true); }}
+          aria-label="Set your contribution to the prize pool">
+          <span className="contrib-btn-label">Contribution</span>
+          <span className="contrib-btn-amt">${me && me.contribution != null ? '$' + fmtPts(me.contribution) : 'set it'}</span>
+        </button>
+      </div>
       ${tab === 'ach'
         ? (isDraft
           ? html`<${DraftScreen}
@@ -1839,7 +1881,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <div className="col-main">${body}</div>
         ${showSide ? html`<aside className="side-feed">
           <${FeedPanel} logs=${logs} players=${players} achById=${achById} />
-          <${PoolCard} count=${Object.keys(players).length} />
+          <${PoolCard} players=${players} />
         </aside>` : null}
       </div>
       ${statsFor ? html`<${Sheet} onClose=${function () { setStatsFor(null); }}>
@@ -1847,6 +1889,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <//>` : null}
       ${editingProfile ? html`<${Sheet} onClose=${function () { setEditingProfile(false); }}>
         <${EditProfile} me=${me} busy=${busy} onSave=${updateMyProfile} onLogOut=${logOut} />
+      <//>` : null}
+      ${showContribution ? html`<${Sheet} onClose=${function () { setShowContribution(false); }}>
+        <${ContributionForm} current=${me ? me.contribution : null} busy=${busy} onSave=${saveContribution} />
       <//>` : null}
       ${toast ? html`<div className="toast" role="status">
         <span>${toast.msg}</span>
@@ -1866,10 +1911,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* title page: the rules of the money game, shown before anything else */
   var RULES = [
-    { title: 'Buy in — $5 each', body: 'Every player puts in $5 before the game starts. Same amount for everyone, paid once.' },
+    { title: 'Pitch into the pool', body: 'Every player puts money into the prize pool \u2014 you choose how much you\u2019re pitching in when you join.' },
     { title: 'Earn points', body: 'Log achievements from the agreed list \u2014 repeats count, so every time you do one, its points are added again.' },
     { title: 'School bonus \u2014 +1,000', body: 'Doing an achievement together with anyone from school earns an extra 1,000 adjustment points \u2014 add them on when you log it.' },
-    { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins every dollar that was put in — $5 times the number of players.' },
+    { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins the whole pool \u2014 every dollar everyone pitched in.' },
     { title: 'Losing costs you nothing extra', body: 'There is no punishment for losing and no further payments. Everyone who doesn’t win simply doesn’t collect.' },
     { title: 'It runs on honour', body: 'Nobody approves your logs, so only log what you have genuinely done.' }
   ];
@@ -1879,7 +1924,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       <div className="title-hero">
         <span className="eyebrow">The rules</span>
         <h1 className="title-name">Achievement<br />Leaderboard</h1>
-        <p className="title-sub">A points game for the group. Five dollars in, one winner takes the lot.</p>
+        <p className="title-sub">A points game for the group. Everyone pitches in \u2014 one winner takes the lot.</p>
       </div>
       <ol className="rules">
         ${RULES.map(function (r, i) {
@@ -2346,14 +2391,19 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </section>`;
   }
 
-  /* live prize pool: $5 buy-in times everyone currently in the game */
-  var BUY_IN = 5;
+  /* live prize pool: the sum of what every player chose to pitch in */
   function PoolCard(props) {
-    var n = props.count;
+    var ids = Object.keys(props.players);
+    var total = 0;
+    var contributors = 0;
+    ids.forEach(function (id) {
+      var c = props.players[id].contribution;
+      if (c != null) { total += c; contributors++; }
+    });
     return html`<section className="card pool-card">
       <span className="eyebrow">Prize pool</span>
-      <div className="pool-num">$${fmtPts(n * BUY_IN)}</div>
-      <p className="pool-sub">${n} ${n === 1 ? 'player' : 'players'} \u00D7 $${BUY_IN} buy-in \u2014 whoever wins takes the lot.</p>
+      <div className="pool-num">$${fmtPts(total)}</div>
+      <p className="pool-sub">${contributors} of ${ids.length} ${ids.length === 1 ? 'player has' : 'players have'} pitched in \u2014 whoever wins takes the lot.</p>
     </section>`;
   }
 
@@ -2401,7 +2451,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       </section>
       ${html`<div className="feed-inline">
         <${FeedPanel} logs=${props.logs} players=${props.players} achById=${props.achById} />
-        <${PoolCard} count=${Object.keys(props.players).length} />
+        <${PoolCard} players=${props.players} />
       </div>`}
     </main>`;
   }
@@ -2476,6 +2526,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           : html`<button className="btn btn-block" onClick=${function () { setConfirmingReopen(true); }}>Reopen for editing\u2026</button>`}
       </section>` : null}
     </main>`;
+  }
+
+  function ContributionForm(props) {
+    var _a = useState(props.current != null ? String(props.current) : ''), raw = _a[0], setRaw = _a[1];
+    var n = parseInt(raw, 10);
+    var valid = !isNaN(n) && n >= 0 && n <= 100000;
+    return html`<div>
+      <span className="eyebrow">Prize pool</span>
+      <h2 className="h2">Your contribution</h2>
+      <p className="muted">How much are you pitching into the pool? Everyone chooses their own amount,
+        it all goes into one pot, and whoever wins takes the lot.</p>
+      <label className="field">
+        <span className="field-label">Amount in dollars</span>
+        <input className="input contrib-input" type="number" inputMode="numeric" min="0" max="100000"
+          value=${raw} placeholder="5" onInput=${function (e) { setRaw(e.target.value); }} />
+      </label>
+      <button className="btn btn-primary btn-block" disabled=${!valid || props.busy}
+        onClick=${function () { props.onSave(n); }}>
+        ${props.busy ? 'Saving\u2026' : 'Save contribution'}
+      </button>
+    </div>`;
   }
 
   /* stats card: also used as the "Me" tab */

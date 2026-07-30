@@ -135,7 +135,7 @@ const path = require('path');
     const p = await newDevice({ keepTitle: true });
     if (await p.locator('.rule').count() !== 6) throw new Error('expected 6 rules');
     const txt = await p.textContent('.rules');
-    for (const frag of ['$5', 'most points', 'punishment for losing', 'honour', '1,000 adjustment']) {
+    for (const frag of ['pitch', 'most points', 'punishment for losing', 'honour', '1,000 adjustment']) {
       if (!txt.toLowerCase().includes(frag.toLowerCase())) throw new Error('rules missing: ' + frag);
     }
     if (await p.locator('.board, .seg-btn').count() > 0) throw new Error('game visible behind title page');
@@ -179,6 +179,10 @@ const path = require('path');
     await a.click('button:has-text("Continue")');
     await a.fill(NAME, 'Ada');
     await a.click('button:has-text("Create game")');
+    await a.waitForSelector('text=Your contribution', { timeout: 8000 });   // every player is prompted
+    await a.fill('.sheet input[type="number"]', '20');
+    await a.click('button:has-text("Save contribution")');
+    await a.waitForSelector('.sheet', { state: 'detached' });
     await a.waitForSelector('text=You’re the game creator', { timeout: 8000 });
     await a.fill('input[placeholder="e.g. Aced the spelling quiz"]', 'Read a book');
     await a.fill('input[type="number"]', '10');
@@ -198,6 +202,10 @@ const path = require('path');
     await b.click('button:has-text("Continue")');
     await b.fill(NAME, 'Ben');
     await b.click('button:has-text("Join game")');
+    await b.waitForSelector('text=Your contribution', { timeout: 8000 });
+    await b.fill('.sheet input[type="number"]', '5');
+    await b.click('button:has-text("Save contribution")');
+    await b.waitForSelector('.sheet', { state: 'detached' });
     await b.waitForSelector('text=hasn’t finalized it yet');
   });
   await step('DRAFT BOARD: both tabs, all players, zero points, newest first', async () => {
@@ -214,7 +222,7 @@ const path = require('path');
     await a.waitForSelector('.feed-empty');   // live feed box is present even before the game starts
     await a.waitForSelector('text=No one’s done anything yet');
     // prize pool tracks the roster live: 2 players x $5
-    await a.waitForSelector('.pool-num:has-text("$10")');
+    await a.waitForSelector('.pool-num:has-text("$25")');
     // the draft list is still reachable from the other tab
     await a.click('.seg-btn:has-text("Achievements")');
     await a.waitForSelector('text=You’re the game creator');
@@ -313,6 +321,8 @@ const path = require('path');
       await p.click('button:has-text("Continue")');
       await p.fill(NAME, name);
       await p.click('button:has-text("Join game")');
+      await p.waitForSelector('text=Your contribution', { timeout: 8000 });
+      await p.click('.sheet-close');   // they'll pitch in later
     }
     await Promise.all([join(d, 'dana@example.com', 'Dana'), join(e, 'eli@example.com', 'Eli')]);
     // everyone must survive on A's live board: Ada, Ben, Dana, Eli
@@ -321,7 +331,8 @@ const path = require('path');
     if (await a.locator('.board-row').count() !== 4) {
       throw new Error('players lost in concurrent join: ' + JSON.stringify(await a.locator('.board-row').allTextContents()));
     }
-    await a.waitForSelector('.pool-num:has-text("$20")');   // pool grew live with the joins
+    await a.waitForSelector('text=2 of 4 players have pitched in');   // Dana and Eli haven't yet
+    await a.waitForSelector('.pool-num:has-text("$25")');
   });
   await step('RACE: two players ticking at once both count', async () => {
     const pages = await Promise.all([newDevice(), newDevice()]);
@@ -330,6 +341,8 @@ const path = require('path');
       await p.fill('input[type="email"]', email);
       await p.fill('input[autocomplete="current-password"]', 'pass' + (i === 0 ? 'Dana' : 'Eli'));
       await p.click('button[type="submit"]');
+      await p.waitForSelector('text=Your contribution', { timeout: 8000 });
+      await p.click('.sheet-close');
       await p.waitForSelector('.seg-btn:has-text("Achievements")', { timeout: 8000 });
       await p.click('.seg-btn:has-text("Achievements")');
       await p.waitForSelector('.log-row:has-text("Read a book")');
@@ -354,7 +367,7 @@ const path = require('path');
     const feedBox = await wide.locator('.side-feed .card').first().boundingBox();
     const poolBox = await wide.locator('.side-feed .pool-card').boundingBox();
     if (!(poolBox.y > feedBox.y)) throw new Error('pool card not below the feed');
-    await wide.waitForSelector('.side-feed .pool-num:has-text("$20")');
+    await wide.waitForSelector('.side-feed .pool-num:has-text("$25")');
     if (await wide.locator('.feed-inline').isVisible()) throw new Error('inline feed still visible on desktop');
     const mainBox = await wide.locator('.col-main').boundingBox();
     const sideBox = await wide.locator('.side-feed').boundingBox();

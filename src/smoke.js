@@ -58,6 +58,10 @@ const path = require('path');
     await a.waitForSelector('text=Create your profile');
     await a.fill(NAME, 'Ada');
     await a.click('button:has-text("Create game")');
+    await a.waitForSelector('text=Your contribution', { timeout: 8000 });
+    await a.fill('.sheet input[type="number"]', '15');
+    await a.click('button:has-text("Save contribution")');
+    await a.waitForSelector('.sheet', { state: 'detached' });
     await a.waitForSelector('text=You’re the game creator', { timeout: 8000 });
   });
   await step('A: add two achievements (auto-approved)', async () => {
@@ -91,7 +95,14 @@ const path = require('path');
     await b.fill('.input-code', joinCode);
     await b.click('button:has-text("Continue")');
     await b.click('button:has-text("Join game")');
+    await b.waitForSelector('text=Your contribution', { timeout: 8000 });
+    await b.fill('.sheet input[type="number"]', '5');
+    await b.click('button:has-text("Save contribution")');
+    await b.waitForSelector('.sheet', { state: 'detached' });
     await b.waitForSelector('text=hasn’t finalized it yet');
+    await b.click('.seg-btn:has-text("Leaderboard")');
+    await b.waitForSelector('.pool-num:has-text("$20")');   // 15 + 5, summed live
+    await b.click('.seg-btn:has-text("Achievements")');
   });
   await step('B: cannot edit approved achievements', async () => {
     await b.waitForSelector('.ach-title:has-text("Read a book")');
@@ -192,6 +203,8 @@ const path = require('path');
     await c.click('button:has-text("Continue")');
     await c.fill(NAME, 'Cleo');
     await c.click('button:has-text("Join game")');
+    await c.waitForSelector('text=Your contribution', { timeout: 8000 });
+    await c.click('.sheet-close');
     await c.waitForSelector('.seg-btn:has-text(\"Leaderboard\")', { timeout: 8000 });
     const board = await c.textContent('.board');
     if (!/Cleo/.test(board)) throw new Error('Cleo not on board');

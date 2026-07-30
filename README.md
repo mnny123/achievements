@@ -2,7 +2,7 @@
 
 A single-file points game for a school group.
 
-- **Title page.** The site opens on the house rules — $5 buy-in each, most points wins the whole pot, no penalty for losing beyond the buy-in, honour system. Shown once per device, and reachable any time from the **Rules** button in the header.
+- **Title page.** The site opens on the house rules — everyone pitches into the pool, most points wins the whole pot, no penalty for losing beyond your contribution, honour system. Shown once per device, and reachable any time from the **Rules** button in the header.
 - **Accounts.** On the hosted site everyone signs up with an email address and password (Firebase Authentication), then creates a display name and profile picture. Logging in on any other browser or device restores the same profile, points and history — the account, not the device, is the identity. Includes password reset by email and a log out button. Email addresses are shown only to their owner, never to other players.
 - The first person to open it creates the game, sets a join code, and is the only one who can finalize the achievement list.
 - During the draft phase anyone can suggest achievements, but only the creator approves them onto the list (players can edit or withdraw their own pending suggestions); finalizing locks the list permanently and discards unapproved suggestions.
