@@ -1043,7 +1043,7 @@
             mode=${!isDraft ? 'live' : (logs.length === 0 ? 'roster' : 'paused')} />`}
     <//>`;
 
-    var showSide = game.phase === 'play' || logs.length > 0;
+    var showSide = true; /* the live feed box is always present, even before anything is logged */
     return html`<div className=${'shell' + (showSide ? ' shell-wide' : '')}>
       ${headerBar}${banners}
       <div className="columns">
@@ -1078,6 +1078,7 @@
   var RULES = [
     { title: 'Buy in — $5 each', body: 'Every player puts in $5 before the game starts. Same amount for everyone, paid once.' },
     { title: 'Earn points', body: 'Log achievements from the agreed list \u2014 repeats count, so every time you do one, its points are added again.' },
+    { title: 'School bonus \u2014 +1,000', body: 'Doing an achievement together with anyone from school earns an extra 1,000 adjustment points \u2014 add them on when you log it.' },
     { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins every dollar that was put in — $5 times the number of players.' },
     { title: 'Losing costs you nothing extra', body: 'There is no punishment for losing and no further payments. Everyone who doesn’t win simply doesn’t collect.' },
     { title: 'It runs on honour', body: 'Nobody approves your logs, so only log what you have genuinely done.' }
@@ -1597,7 +1598,7 @@
         </ol>
         <p className="hint">Tap a player to see their profile${isRoster ? '.' : ' and their full point history.'}</p>
       </section>
-      ${isRoster ? null : html`<div className="feed-inline">
+      ${html`<div className="feed-inline">
         <${FeedPanel} logs=${props.logs} players=${props.players} achById=${props.achById} />
       </div>`}
     </main>`;

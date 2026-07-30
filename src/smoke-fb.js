@@ -133,9 +133,9 @@ const path = require('path');
   // the title page is checked on a raw page before any device helper dismisses it
   await step('TITLE: rules page shows first, all five rules, then dismisses', async () => {
     const p = await newDevice({ keepTitle: true });
-    if (await p.locator('.rule').count() !== 5) throw new Error('expected 5 rules');
+    if (await p.locator('.rule').count() !== 6) throw new Error('expected 6 rules');
     const txt = await p.textContent('.rules');
-    for (const frag of ['$5', 'most points', 'punishment for losing', 'honour']) {
+    for (const frag of ['$5', 'most points', 'punishment for losing', 'honour', '1,000 adjustment']) {
       if (!txt.toLowerCase().includes(frag.toLowerCase())) throw new Error('rules missing: ' + frag);
     }
     if (await p.locator('.board, .seg-btn').count() > 0) throw new Error('game visible behind title page');
@@ -211,6 +211,8 @@ const path = require('path');
     if (await a.locator('.board-rank').count() > 0) throw new Error('rank numbers shown before scoring starts');
     if (await a.locator('.board .avatar').count() !== 2) throw new Error('missing profile pictures');
     await a.waitForSelector('text=Scoring starts when the achievement list is finalized');
+    await a.waitForSelector('.feed-empty');   // live feed box is present even before the game starts
+    await a.waitForSelector('text=No one’s done anything yet');
     // the draft list is still reachable from the other tab
     await a.click('.seg-btn:has-text("Achievements")');
     await a.waitForSelector('text=You’re the game creator');
