@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Achievement Leaderboard</title>
 <style>
   /* ---------- tokens: sleek monochrome (white/gray, graphite dark) ---------- */
@@ -364,7 +370,37 @@
   }
   .ach-form { text-align: left; }
 </style>
+</head>
+<body>
 <div id="root"></div>
+<script>
+/* =============================================================
+   FIREBASE SETUP — paste your Firebase web config below.
+
+   1. Go to console.firebase.google.com and open your project.
+   2. Gear icon -> Project settings -> "Your apps" -> your web app
+      -> copy the firebaseConfig object.
+   3. Replace the `null` below with that object.
+      It MUST include databaseURL (created when you add a
+      Realtime Database — see the README walkthrough).
+
+   Example:
+   window.FIREBASE_CONFIG = {
+     apiKey: "AIzaSy...",
+     authDomain: "my-game.firebaseapp.com",
+     databaseURL: "https://my-game-default-rtdb.asia-southeast1.firebasedatabase.app",
+     projectId: "my-game",
+     storageBucket: "my-game.appspot.com",
+     messagingSenderId: "1234567890",
+     appId: "1:1234567890:web:abc123"
+   };
+
+   Until this is filled in, the page runs in local demo mode.
+   ============================================================= */
+window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || null;
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 /**
  * @license React
@@ -1817,3 +1853,5 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 })();
 </script>
+</body>
+</html>
