@@ -351,8 +351,10 @@ const path = require('path');
     if (await wide.locator('.feed-inline').isVisible()) throw new Error('inline feed still visible on desktop');
     const mainBox = await wide.locator('.col-main').boundingBox();
     const sideBox = await wide.locator('.side-feed').boundingBox();
-    if (!(mainBox.x < 200)) throw new Error('main content not shifted left: x=' + mainBox.x);
     if (!(sideBox.x > mainBox.x + mainBox.width - 1)) throw new Error('feed not to the right of content');
+    const leftGap = mainBox.x;
+    const rightGap = 1440 - (sideBox.x + sideBox.width);
+    if (Math.abs(leftGap - rightGap) > 60) throw new Error('layout not centered: gaps ' + leftGap + ' / ' + rightGap);
     await wide.close();
   });
 
