@@ -32,6 +32,8 @@ const path = require('path');
       };
     `);
     await page.goto(url);
+    await page.waitForSelector('.title-page', { timeout: 8000 });
+    await page.click('button:has-text("let\u2019s play")');
     return page;
   }
 

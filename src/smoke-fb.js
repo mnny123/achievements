@@ -30,7 +30,7 @@ const path = require('path');
     }
   };
 
-  async function newDevice() {
+  async function newDevice(opts) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.route('**://www.gstatic.com/**', r => r.abort()); // stub replaces the real SDK
     const page = await ctx.newPage();
@@ -103,6 +103,8 @@ const path = require('path');
       })();
     `);
     await page.goto(url);
+    await page.waitForSelector('.title-page', { timeout: 8000 });
+    if (!(opts && opts.keepTitle)) await page.click('button:has-text("let\u2019s play")');
     return page;
   }
 
@@ -118,6 +120,26 @@ const path = require('path');
     await page.fill('input[autocomplete="new-password"] >> nth=1', pw);
     await page.click('button:has-text("Create account")');
   }
+
+  // the title page is checked on a raw page before any device helper dismisses it
+  await step('TITLE: rules page shows first, all five rules, then dismisses', async () => {
+    const p = await newDevice({ keepTitle: true });
+    if (await p.locator('.rule').count() !== 5) throw new Error('expected 5 rules');
+    const txt = await p.textContent('.rules');
+    for (const frag of ['$5', 'most points', 'punishment for losing', 'honour']) {
+      if (!txt.toLowerCase().includes(frag.toLowerCase())) throw new Error('rules missing: ' + frag);
+    }
+    if (await p.locator('.board, .seg-btn').count() > 0) throw new Error('game visible behind title page');
+    await p.click('button:has-text("let’s play")');
+    await p.waitForSelector('.title-page', { state: 'detached' });
+    await p.reload();                       // stays dismissed on this device
+    await p.waitForSelector('button:has-text("Log in")', { timeout: 8000 });
+    if (await p.locator('.title-page').count() > 0) throw new Error('title page shown again after reload');
+    await p.click('.btn-ghost:has-text("Rules")');   // reachable on demand
+    await p.waitForSelector('.title-page');
+    await p.click('button:has-text("Back to the game")');
+    await p.waitForSelector('button:has-text("Log in")');
+  });
 
   const a = await newDevice();
   let joinCode = '';

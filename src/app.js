@@ -342,6 +342,11 @@
     var _d = useState([]), logs = _d[0], setLogs = _d[1];
     var _e = useState(null), localId = _e[0], setLocalId = _e[1];
     var _m = useState(null), authUser = _m[0], setAuthUser = _m[1];
+    /* the rules page is shown once per device, and on demand from the header */
+    var _o = useState(function () {
+      try { return localStorage.getItem('alg:rulesSeen') === '1'; } catch (e) { return false; }
+    }), rulesSeen = _o[0], setRulesSeen = _o[1];
+    var _p = useState(false), showingRules = _p[0], setShowingRules = _p[1];
     /* non-Firebase builds have no accounts, so auth is "ready" immediately */
     var _n = useState(MODE !== 'firebase'), authReady = _n[0], setAuthReady = _n[1];
     var _f = useState(false), refreshing = _f[0], setRefreshing = _f[1];
@@ -710,7 +715,20 @@
       });
     }
 
+    function dismissRules() {
+      try { localStorage.setItem('alg:rulesSeen', '1'); } catch (e) { /* not fatal */ }
+      setRulesSeen(true);
+      setShowingRules(false);
+    }
+
     /* ------------ screens ------------ */
+    /* title page first, and any time someone taps Rules */
+    if (!rulesSeen || showingRules) {
+      return html`<div className="shell">
+        <${TitlePage} returning=${rulesSeen} onContinue=${dismissRules} />
+      </div>`;
+    }
+
     if (!authReady) {
       return html`<div className="shell center-screen">
         <div className="spinner" aria-hidden="true"></div>
@@ -725,6 +743,9 @@
           <div className="topbar-title">
             <span className="eyebrow">Achievement</span>
             <h1 className="h1">Leaderboard</h1>
+          </div>
+          <div className="topbar-actions">
+            <button className="btn btn-ghost btn-mini" onClick=${function () { setShowingRules(true); }}>Rules</button>
           </div>
         </header>
         ${errorBanner ? html`<${Banner} kind="error" onClose=${function () { setErrorBanner(null); }}>${errorBanner}<//>` : null}
@@ -753,6 +774,7 @@
         <h1 className="h1">Leaderboard</h1>
       </div>
       <div className="topbar-actions">
+        <button className="btn btn-ghost btn-mini" onClick=${function () { setShowingRules(true); }}>Rules</button>
         ${me ? html`<button className="topbar-avatar" onClick=${function () { setEditingProfile(true); }} aria-label="Edit my profile">
           <${Avatar} player=${me} size=${38} />
         </button>` : null}
@@ -835,6 +857,39 @@
       Your name, picture, score and activity are visible to everyone in the game.
       Your email or phone number is used only to sign you in and is never shown to other players.
     </div>`;
+  }
+
+  /* title page: the rules of the money game, shown before anything else */
+  var RULES = [
+    { title: 'Buy in — $5 each', body: 'Every player puts in $5 before the game starts. Same amount for everyone, paid once.' },
+    { title: 'Earn points', body: 'Tick off achievements from the agreed list. Each one is worth the points shown beside it.' },
+    { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins every dollar that was put in — $5 times the number of players.' },
+    { title: 'Losing costs you nothing extra', body: 'There is no punishment for losing and no further payments. Everyone who doesn’t win simply doesn’t collect.' },
+    { title: 'It runs on honour', body: 'Nobody approves your ticks, so only tick off what you have genuinely done.' }
+  ];
+
+  function TitlePage(props) {
+    return html`<main className="title-page">
+      <div className="title-hero">
+        <span className="eyebrow">The rules</span>
+        <h1 className="title-name">Achievement<br />Leaderboard</h1>
+        <p className="title-sub">A points game for the group. Five dollars in, one winner takes the lot.</p>
+      </div>
+      <ol className="rules">
+        ${RULES.map(function (r, i) {
+          return html`<li key=${r.title} className="rule">
+            <span className="rule-num">${i + 1}</span>
+            <div>
+              <h2 className="rule-title">${r.title}</h2>
+              <p className="rule-body">${r.body}</p>
+            </div>
+          </li>`;
+        })}
+      </ol>
+      <button className="btn btn-primary btn-block" onClick=${props.onContinue}>
+        ${props.returning ? 'Back to the game' : 'Got it — let’s play'}
+      </button>
+    </main>`;
   }
 
   /* log in / sign up — only used when Firebase accounts are available */

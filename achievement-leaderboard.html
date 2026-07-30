@@ -1,63 +1,31 @@
 <title>Achievement Leaderboard</title>
 <style>
-  /* ---------- tokens: sleek monochrome (white/gray, graphite dark) ---------- */
+  /* ---------- tokens: white-dominant, single light theme ----------
+     The design commits to one bright look: white ground, white cards
+     separated by hairlines, ink-black as the only strong accent. */
   :root {
-    --bg: #F6F6F7;
+    color-scheme: light;
+    --bg: #FFFFFF;
     --surface: #FFFFFF;
-    --surface-2: #F2F2F3;
-    --ink: #141417;
-    --muted: #6F6F78;
-    --line: #E5E5E9;
-    --accent: #141417;
+    --surface-2: #F7F7F9;
+    --surface-3: #FCFCFD;
+    --ink: #111114;
+    --muted: #71717A;
+    --line: #E7E7EC;
+    --line-strong: #D6D6DE;
+    --accent: #111114;
     --accent-ink: #FFFFFF;
-    --accent-soft: #ECECEF;
-    --chip-bg: #E8E8EB;
-    --chip-ink: #141417;
-    --good: #1F8A5D;
+    --accent-soft: #F2F2F5;
+    --chip-bg: #F1F1F4;
+    --chip-ink: #111114;
+    --good: #17805A;
     --good-ink: #FFFFFF;
-    --danger: #C24034;
-    --danger-soft: #F7E8E6;
-    --warn-bg: #F1EDDF;
-    --warn-text: #6B5D22;
-    --shadow: 0 1px 2px rgba(20, 20, 23, 0.04), 0 6px 20px rgba(20, 20, 23, 0.05);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121214;
-      --surface: #1A1A1D;
-      --surface-2: #222226;
-      --ink: #F2F2F4;
-      --muted: #9A9AA4;
-      --line: #2C2C31;
-      --accent: #F2F2F4;
-      --accent-ink: #141417;
-      --accent-soft: #26262B;
-      --chip-bg: #2E2E34;
-      --chip-ink: #F2F2F4;
-      --good: #3FAE7C;
-      --good-ink: #10130F;
-      --danger: #E4796C;
-      --danger-soft: #3A211D;
-      --warn-bg: #34301D;
-      --warn-text: #DFD09A;
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
-    }
-  }
-  :root[data-theme="light"] {
-    --bg: #F6F6F7; --surface: #FFFFFF; --surface-2: #F2F2F3; --ink: #141417;
-    --muted: #6F6F78; --line: #E5E5E9; --accent: #141417; --accent-ink: #FFFFFF;
-    --accent-soft: #ECECEF; --chip-bg: #E8E8EB; --chip-ink: #141417;
-    --good: #1F8A5D; --good-ink: #FFFFFF; --danger: #C24034; --danger-soft: #F7E8E6;
-    --warn-bg: #F1EDDF; --warn-text: #6B5D22;
-    --shadow: 0 1px 2px rgba(20, 20, 23, 0.04), 0 6px 20px rgba(20, 20, 23, 0.05);
-  }
-  :root[data-theme="dark"] {
-    --bg: #121214; --surface: #1A1A1D; --surface-2: #222226; --ink: #F2F2F4;
-    --muted: #9A9AA4; --line: #2C2C31; --accent: #F2F2F4; --accent-ink: #141417;
-    --accent-soft: #26262B; --chip-bg: #2E2E34; --chip-ink: #F2F2F4;
-    --good: #3FAE7C; --good-ink: #10130F; --danger: #E4796C; --danger-soft: #3A211D;
-    --warn-bg: #34301D; --warn-text: #DFD09A;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
+    --danger: #B93A2E;
+    --danger-soft: #FBEDEB;
+    --warn-bg: #FBF4E2;
+    --warn-text: #7A5D18;
+    --shadow: 0 1px 2px rgba(17, 17, 20, 0.04);
+    --shadow-lift: 0 1px 2px rgba(17, 17, 20, 0.04), 0 10px 30px rgba(17, 17, 20, 0.06);
   }
 
   html { background: var(--bg); }
@@ -118,6 +86,8 @@
     background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
     box-shadow: var(--shadow); padding: 20px 18px; margin: 14px 0;
   }
+  .btn-ghost { background: none; border-color: transparent; color: var(--muted); }
+  .btn-ghost:hover { background: var(--surface-2); }
   .banner {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
     border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: 14px;
@@ -159,7 +129,7 @@
   .field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
   .input {
     width: 100%; min-height: 48px; padding: 10px 14px; font: inherit;
-    border-radius: 11px; border: 1px solid var(--line);
+    border-radius: 11px; border: 1px solid var(--line-strong);
     background: var(--surface); color: var(--ink);
   }
   .input::placeholder { color: var(--muted); opacity: 0.6; }
@@ -222,7 +192,7 @@
   .ach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .ach-row {
     display: flex; gap: 12px; justify-content: space-between; align-items: flex-start;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    background: var(--surface-3); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
   }
   .ach-row-editing { display: block; }
   .ach-main { min-width: 0; }
@@ -239,7 +209,7 @@
 
   .log-row {
     width: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: center;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface-3); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px; min-height: 64px; cursor: pointer; text-align: left;
   }
   .log-row:active { background: var(--accent-soft); border-color: var(--ink); }
@@ -249,7 +219,7 @@
   .board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .board-row {
     width: 100%; display: flex; align-items: center; gap: 12px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    background: var(--surface-3); border: 1px solid var(--line); border-radius: 12px;
     padding: 10px 14px; min-height: 64px; cursor: pointer; text-align: left;
   }
   .board-row-me { border-color: var(--ink); background: var(--accent-soft); }
@@ -318,7 +288,7 @@
 
   /* ---------- checklist ---------- */
   .check {
-    width: 26px; height: 26px; border: 2px solid var(--line); border-radius: 8px;
+    width: 26px; height: 26px; border: 2px solid var(--line-strong); border-radius: 8px;
     display: grid; place-items: center; flex-shrink: 0; background: var(--surface);
     transition: background 0.12s ease, border-color 0.12s ease;
   }
@@ -328,12 +298,13 @@
 
   /* ---------- sheet & toast ---------- */
   .sheet-backdrop {
-    position: fixed; inset: 0; z-index: 40; background: rgba(12, 12, 14, 0.5);
+    position: fixed; inset: 0; z-index: 40; background: rgba(17, 17, 20, 0.35);
     display: flex; align-items: flex-end; justify-content: center;
   }
   .sheet {
     position: relative; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto;
-    background: var(--bg); border-radius: 18px 18px 0 0; padding: 20px 16px 30px;
+    background: var(--surface); border-radius: 18px 18px 0 0; padding: 20px 16px 30px;
+    box-shadow: var(--shadow-lift);
     animation: sheet-up 0.22s ease-out;
   }
   @keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
@@ -352,7 +323,7 @@
     display: flex; align-items: center; gap: 14px;
     background: var(--ink); color: var(--bg);
     border-radius: 999px; padding: 12px 20px; font-weight: 600; font-size: 14px;
-    box-shadow: var(--shadow); max-width: calc(100vw - 32px);
+    box-shadow: var(--shadow-lift); max-width: calc(100vw - 32px);
   }
   .toast-undo {
     background: none; border: none; color: inherit; font-weight: 700;
@@ -365,6 +336,29 @@
     animation: spin 0.8s linear infinite;
   }
   .ach-form { text-align: left; }
+
+  /* ---------- title page ---------- */
+  .title-page { padding: 28px 2px 8px; }
+  .title-hero { padding-bottom: 22px; border-bottom: 1px solid var(--line); }
+  .title-name {
+    font-size: clamp(38px, 12vw, 52px); line-height: 1.02; font-weight: 800;
+    letter-spacing: -0.035em; margin: 8px 0 0;
+  }
+  .title-sub { color: var(--muted); font-size: 15.5px; margin: 14px 0 0; max-width: 34ch; }
+  .rules { list-style: none; margin: 0; padding: 0; }
+  .rule {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 18px 0; border-bottom: 1px solid var(--line);
+  }
+  .rule-num {
+    flex-shrink: 0; width: 27px; height: 27px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px;
+  }
+  .rule-title { font-size: 16px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .rule-body { color: var(--muted); font-size: 14.5px; margin: 4px 0 0; }
+  .title-page .btn-block { margin-top: 26px; margin-bottom: 8px; }
 </style>
 <div id="root"></div>
 <script>
@@ -1017,6 +1011,11 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _d = useState([]), logs = _d[0], setLogs = _d[1];
     var _e = useState(null), localId = _e[0], setLocalId = _e[1];
     var _m = useState(null), authUser = _m[0], setAuthUser = _m[1];
+    /* the rules page is shown once per device, and on demand from the header */
+    var _o = useState(function () {
+      try { return localStorage.getItem('alg:rulesSeen') === '1'; } catch (e) { return false; }
+    }), rulesSeen = _o[0], setRulesSeen = _o[1];
+    var _p = useState(false), showingRules = _p[0], setShowingRules = _p[1];
     /* non-Firebase builds have no accounts, so auth is "ready" immediately */
     var _n = useState(MODE !== 'firebase'), authReady = _n[0], setAuthReady = _n[1];
     var _f = useState(false), refreshing = _f[0], setRefreshing = _f[1];
@@ -1385,7 +1384,20 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       });
     }
 
+    function dismissRules() {
+      try { localStorage.setItem('alg:rulesSeen', '1'); } catch (e) { /* not fatal */ }
+      setRulesSeen(true);
+      setShowingRules(false);
+    }
+
     /* ------------ screens ------------ */
+    /* title page first, and any time someone taps Rules */
+    if (!rulesSeen || showingRules) {
+      return html`<div className="shell">
+        <${TitlePage} returning=${rulesSeen} onContinue=${dismissRules} />
+      </div>`;
+    }
+
     if (!authReady) {
       return html`<div className="shell center-screen">
         <div className="spinner" aria-hidden="true"></div>
@@ -1400,6 +1412,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           <div className="topbar-title">
             <span className="eyebrow">Achievement</span>
             <h1 className="h1">Leaderboard</h1>
+          </div>
+          <div className="topbar-actions">
+            <button className="btn btn-ghost btn-mini" onClick=${function () { setShowingRules(true); }}>Rules</button>
           </div>
         </header>
         ${errorBanner ? html`<${Banner} kind="error" onClose=${function () { setErrorBanner(null); }}>${errorBanner}<//>` : null}
@@ -1428,6 +1443,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <h1 className="h1">Leaderboard</h1>
       </div>
       <div className="topbar-actions">
+        <button className="btn btn-ghost btn-mini" onClick=${function () { setShowingRules(true); }}>Rules</button>
         ${me ? html`<button className="topbar-avatar" onClick=${function () { setEditingProfile(true); }} aria-label="Edit my profile">
           <${Avatar} player=${me} size=${38} />
         </button>` : null}
@@ -1510,6 +1526,39 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       Your name, picture, score and activity are visible to everyone in the game.
       Your email or phone number is used only to sign you in and is never shown to other players.
     </div>`;
+  }
+
+  /* title page: the rules of the money game, shown before anything else */
+  var RULES = [
+    { title: 'Buy in — $5 each', body: 'Every player puts in $5 before the game starts. Same amount for everyone, paid once.' },
+    { title: 'Earn points', body: 'Tick off achievements from the agreed list. Each one is worth the points shown beside it.' },
+    { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins every dollar that was put in — $5 times the number of players.' },
+    { title: 'Losing costs you nothing extra', body: 'There is no punishment for losing and no further payments. Everyone who doesn’t win simply doesn’t collect.' },
+    { title: 'It runs on honour', body: 'Nobody approves your ticks, so only tick off what you have genuinely done.' }
+  ];
+
+  function TitlePage(props) {
+    return html`<main className="title-page">
+      <div className="title-hero">
+        <span className="eyebrow">The rules</span>
+        <h1 className="title-name">Achievement<br />Leaderboard</h1>
+        <p className="title-sub">A points game for the group. Five dollars in, one winner takes the lot.</p>
+      </div>
+      <ol className="rules">
+        ${RULES.map(function (r, i) {
+          return html`<li key=${r.title} className="rule">
+            <span className="rule-num">${i + 1}</span>
+            <div>
+              <h2 className="rule-title">${r.title}</h2>
+              <p className="rule-body">${r.body}</p>
+            </div>
+          </li>`;
+        })}
+      </ol>
+      <button className="btn btn-primary btn-block" onClick=${props.onContinue}>
+        ${props.returning ? 'Back to the game' : 'Got it — let’s play'}
+      </button>
+    </main>`;
   }
 
   /* log in / sign up — only used when Firebase accounts are available */
