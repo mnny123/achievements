@@ -231,6 +231,8 @@ const path = require('path');
     await a.click('text=Finalize…');
     await a.click('text=Yes, finalize');
     await b.waitForSelector('.log-row', { timeout: 6000 });  // draft list becomes the tickable checklist
+    await a.waitForSelector('.feed-empty', { timeout: 6000 });
+    await a.waitForSelector('text=No one’s done anything yet');
   });
   await step('B logs twice, unlogs once; A gets live toasts + totals', async () => {
     await b.click('.seg-btn:has-text("Achievements")');
@@ -270,7 +272,9 @@ const path = require('path');
     // creator adds one more achievement and finalizes again
     await a.fill('input[placeholder="e.g. Aced the spelling quiz"]', 'Bonus round');
     await a.fill('input[type="number"]', '50');
+    await a.check('input[type="checkbox"]');
     await a.click('button:has-text("Add achievement")');
+    await a.waitForSelector('.adjustable-tag');
     await a.waitForSelector('.ach-title:has-text("Bonus round")');
     await a.click('text=Finalize…');
     await a.click('text=Yes, finalize');
@@ -278,6 +282,22 @@ const path = require('path');
     await b.click('.seg-btn:has-text("Achievements")');
     await b.waitForSelector('.log-row:has-text("Bonus round")');
     await b.waitForSelector('.check-count:has-text("1×")'); // Read a book still 1×
+  });
+
+  await step('ADJUSTMENT: B logs adjustable +5000; feed and toasts show it', async () => {
+    // Bonus round is adjustable, so tapping opens the adjustment panel
+    await b.click('.log-row:has-text("Bonus round")');
+    await b.waitForSelector('.adj-panel');
+    await b.fill('.adj-panel input[type="number"]', '5000');
+    await b.click('.adj-panel .btn-primary');
+    await b.waitForSelector('.toast:has-text("incl. +5,000 adjustment")');
+    // A is told live, including the adjustment
+    await a.waitForSelector('.toast:has-text("incl. +5,000 adjustment")', { timeout: 6000 });
+    await a.click('.seg-btn:has-text("Leaderboard")');
+    await a.waitForSelector('.board-row:has-text("Ben") >> text=5,060', { timeout: 6000 });
+    // the feed entry carries the adjustment tag and the running total
+    await a.waitForSelector('.adj-tag:has-text("+5,000 adj")');
+    await a.waitForSelector('text=now on 5,060 pts');
   });
 
   await step('RACE: two players joining at once both appear', async () => {
@@ -325,6 +345,7 @@ const path = require('path');
     if (!(await wide.locator('.side-feed').isVisible())) throw new Error('sidebar feed not visible on desktop');
     await wide.waitForSelector('.side-feed >> text=Live feed');
     await wide.waitForSelector('.side-feed >> text=now on');
+    await wide.waitForSelector('.side-feed .adj-tag');
     if (await wide.locator('.feed-inline').isVisible()) throw new Error('inline feed still visible on desktop');
     const mainBox = await wide.locator('.col-main').boundingBox();
     const sideBox = await wide.locator('.side-feed').boundingBox();
@@ -356,7 +377,7 @@ const path = require('path');
     if (await c.locator('text=Join the game').count() > 0) throw new Error('asked to re-join');
     const meRow = await c.textContent('.board-row-me');
     if (!/Ben/.test(meRow)) throw new Error('not Ben: ' + meRow);
-    if (!/10/.test(meRow)) throw new Error('points did not follow the account: ' + meRow);
+    if (!/5,060/.test(meRow)) throw new Error('points did not follow the account: ' + meRow);
   });
   await step('C: log out returns to the login screen', async () => {
     await c.click('.topbar-avatar');

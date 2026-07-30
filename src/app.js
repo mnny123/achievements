@@ -498,7 +498,9 @@
       var p = players[last.playerId];
       var a = achById[last.achId];
       if (!a) return;
-      var msg = ((p && p.name) || 'Someone') + ' logged \u201C' + a.title + '\u201D \u2014 +' + fmtPts(a.points) + ' pts' +
+      var lastAdj = last.adj || 0;
+      var msg = ((p && p.name) || 'Someone') + ' logged \u201C' + a.title + '\u201D \u2014 +' + fmtPts(a.points + lastAdj) + ' pts' +
+        (lastAdj ? ' (incl. ' + (lastAdj > 0 ? '+' : '\u2212') + fmtPts(Math.abs(lastAdj)) + ' adjustment)' : '') +
         (added.length > 1 ? ' (and ' + (added.length - 1) + ' more)' : '');
       showToast({ msg: msg });
       maybeNotify(msg);
@@ -524,7 +526,7 @@
       logs.forEach(function (lg) {
         var a = achById[lg.achId];
         if (!a) return;
-        totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points;
+        totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points + (lg.adj || 0);
         counts[lg.playerId] = (counts[lg.playerId] || 0) + 1;
         if (!done[lg.playerId]) done[lg.playerId] = {};
         done[lg.playerId][lg.achId] = (done[lg.playerId][lg.achId] || 0) + 1;
@@ -732,11 +734,12 @@
             if (!amCreator && !(achStatus(t) === 'pending' && t.createdBy === myId)) {
               return { __abort: 'Only the creator can change approved achievements. You can only edit your own pending suggestions.' };
             }
-            t.title = data.title; t.desc = data.desc; t.points = data.points;
+            t.title = data.title; t.desc = data.desc; t.points = data.points; t.adjustable = !!data.adjustable;
           } else {
             wasPending = !amCreator;
             g.achievements.push({
               id: uid(), title: data.title, desc: data.desc, points: data.points,
+              adjustable: !!data.adjustable,
               status: amCreator ? 'approved' : 'pending',
               createdBy: myId, createdAt: Date.now()
             });
@@ -844,9 +847,11 @@
       return list.filter(function (lg) { return lg.playerId === myId && lg.achId === achId; }).length;
     }
 
-    async function logAchievement(ach) {
+    async function logAchievement(ach, adj) {
+      adj = parseInt(adj, 10) || 0;
       return withBusy(async function () {
         var entry = { id: uid(), playerId: myId, achId: ach.id, at: Date.now() };
+        if (adj) entry.adj = adj;
         var freshLogs;
         if (MODE === 'firebase') {
           try {
@@ -867,13 +872,15 @@
         }
         if (freshLogs) setLogs(freshLogs);
         var n = freshLogs ? myCountFor(freshLogs, ach.id) : 1;
-        showToast({ msg: '\u201C' + ach.title + '\u201D logged ' + n + '\u00D7 \u2014 +' + fmtPts(ach.points) + ' pts' });
+        showToast({ msg: '\u201C' + ach.title + '\u201D logged ' + n + '\u00D7 \u2014 +' + fmtPts(ach.points + adj) + ' pts' +
+          (adj ? ' (incl. ' + (adj > 0 ? '+' : '\u2212') + fmtPts(Math.abs(adj)) + ' adjustment)' : '') });
       });
     }
 
     async function unlogAchievement(ach) {
       return withBusy(async function () {
         var freshLogs = null;
+        var removedAdj = 0;
         if (MODE === 'firebase') {
           try {
             var got = await fbLogsNode();
@@ -881,10 +888,11 @@
             Object.keys(got.v).forEach(function (k) {
               var lg = got.v[k];
               if (typeof lg === 'string') { try { lg = JSON.parse(lg); } catch (e) { lg = null; } }
-              if (lg && lg.playerId === myId && lg.achId === ach.id) mine.push({ key: k, at: lg.at || 0 });
+              if (lg && lg.playerId === myId && lg.achId === ach.id) mine.push({ key: k, at: lg.at || 0, adj: lg.adj || 0 });
             });
             if (!mine.length) return;
             mine.sort(function (x, y) { return x.at - y.at; });
+            removedAdj = mine[mine.length - 1].adj;
             var patch = {};
             patch[mine[mine.length - 1].key] = null;
             await got.node.update(patch);
@@ -895,21 +903,24 @@
             return;
           }
         } else {
+          var removedRef = { adj: 0 };
           var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
             var idx = -1;
             for (var i = d.logs.length - 1; i >= 0; i--) {
               if (d.logs[i].playerId === myId && d.logs[i].achId === ach.id) { idx = i; break; }
             }
             if (idx < 0) return { __abort: 'Nothing to remove.' };
+            removedRef.adj = d.logs[idx].adj || 0;
             d.logs.splice(idx, 1);
             return d;
           });
+          removedAdj = removedRef.adj;
           if (!res.ok) { if (!res.aborted) setErrorBanner(res.error); return; }
           freshLogs = res.value.logs;
         }
         if (freshLogs) setLogs(freshLogs);
         var n = freshLogs ? myCountFor(freshLogs, ach.id) : 0;
-        showToast({ msg: '\u201C' + ach.title + '\u201D \u2014 one removed, \u2212' + fmtPts(ach.points) + ' pts' + (n > 0 ? ' (now ' + n + '\u00D7)' : '') });
+        showToast({ msg: '\u201C' + ach.title + '\u201D \u2014 one removed, \u2212' + fmtPts(ach.points + removedAdj) + ' pts' + (n > 0 ? ' (now ' + n + '\u00D7)' : '') });
       });
     }
 
@@ -1336,6 +1347,7 @@
     var _a = useState(init.title || ''), title = _a[0], setTitle = _a[1];
     var _b = useState(init.desc || ''), desc = _b[0], setDesc = _b[1];
     var _c = useState(init.points != null ? String(init.points) : ''), pts = _c[0], setPts = _c[1];
+    var _e = useState(!!init.adjustable), adjustable = _e[0], setAdjustable = _e[1];
     var n = parseInt(pts, 10);
     var valid = title.trim().length > 0 && !isNaN(n) && n >= 1 && n <= 100000;
     return html`<div className="ach-form">
@@ -1354,12 +1366,18 @@
         <input className="input" type="number" inputMode="numeric" min="1" max="100000" value=${pts} placeholder="10"
           onInput=${function (e) { setPts(e.target.value); }} />
       </label>
+      <label className="field field-check">
+        <input type="checkbox" checked=${adjustable}
+          onChange=${function (e) { setAdjustable(e.target.checked); }} />
+        <span><strong>Allow adjustment points.</strong> Whoever logs this can add extra points on top
+          (or take some off) to match how hard their circumstances were.</span>
+      </label>
       <div className="form-actions">
         ${props.onCancel ? html`<button className="btn btn-secondary" onClick=${props.onCancel}>Cancel</button>` : null}
         <button className="btn btn-primary" disabled=${!valid || props.busy}
           onClick=${function () {
-            props.onSave({ title: title.trim(), desc: desc.trim(), points: n });
-            if (!props.initial) { setTitle(''); setDesc(''); setPts(''); }
+            props.onSave({ title: title.trim(), desc: desc.trim(), points: n, adjustable: adjustable });
+            if (!props.initial) { setTitle(''); setDesc(''); setPts(''); setAdjustable(false); }
           }}>
           ${props.initial ? 'Save changes' : 'Add achievement'}
         </button>
@@ -1403,6 +1421,7 @@
         </div>
         <div className="ach-side">
           <${Pts} value=${a.points} />
+          ${a.adjustable ? html`<span className="adjustable-tag">adjustable</span>` : null}
           <div className="ach-actions">
             ${isPending && props.isCreator ? html`<button className="btn btn-mini btn-approve" disabled=${props.busy}
               onClick=${function () { props.onApprove(a.id); }}>Approve</button>` : null}
@@ -1483,23 +1502,29 @@
     props.logs.forEach(function (lg) {
       var a = props.achById[lg.achId];
       if (!a) return;
-      totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points;
+      var adj = lg.adj || 0;
+      totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points + adj;
       if (!achCounts[lg.playerId]) achCounts[lg.playerId] = {};
       achCounts[lg.playerId][lg.achId] = (achCounts[lg.playerId][lg.achId] || 0) + 1;
-      entries.push({ lg: lg, a: a, nth: achCounts[lg.playerId][lg.achId], total: totals[lg.playerId] });
+      entries.push({ lg: lg, a: a, adj: adj, earned: a.points + adj, nth: achCounts[lg.playerId][lg.achId], total: totals[lg.playerId] });
     });
     var recent = entries.slice(-(props.limit || 25)).reverse();
-    if (!recent.length) return html`<p className="muted">Nothing logged yet \u2014 be the first on the board.</p>`;
+    if (!recent.length) return html`<div className="feed-empty">
+      <div>
+        <div className="feed-empty-title">No one\u2019s done anything yet</div>
+        <p>The moment somebody logs an achievement, it\u2019ll appear here for everyone \u2014 live.</p>
+      </div>
+    </div>`;
     return html`<ul className="feed">
       ${recent.map(function (e) {
         var p = props.players[e.lg.playerId];
         return html`<li key=${e.lg.id} className="feed-row">
           <${Avatar} player=${p} size=${36} />
           <div className="feed-main">
-            <div><strong>${(p && p.name) || 'A former player'}</strong> logged \u201C${e.a.title}\u201D${e.nth > 1 ? html`<span className="nth-tag">${e.nth}\u00D7</span>` : null}</div>
+            <div><strong>${(p && p.name) || 'A former player'}</strong> logged \u201C${e.a.title}\u201D${e.nth > 1 ? html`<span className="nth-tag">${e.nth}\u00D7</span>` : null}${e.adj ? html`<span className="adj-tag">${e.adj > 0 ? '+' : '\u2212'}${fmtPts(Math.abs(e.adj))} adj</span>` : null}</div>
             <div className="feed-time">${timeAgo(e.lg.at)} \u00B7 now on ${fmtPts(e.total)} pts</div>
           </div>
-          <${Pts} value=${e.a.points} plus=${true} />
+          <${Pts} value=${e.earned} plus=${true} />
         </li>`;
       })}
     </ul>`;
@@ -1572,12 +1597,9 @@
         </ol>
         <p className="hint">Tap a player to see their profile${isRoster ? '.' : ' and their full point history.'}</p>
       </section>
-      ${isRoster ? null : html`<section className="card feed-inline">
-        <span className="eyebrow">Recent activity</span>
-        <div style=${{ marginTop: '10px' }}>
-          <${FeedList} logs=${props.logs} players=${props.players} achById=${props.achById} limit=${25} />
-        </div>
-      </section>`}
+      ${isRoster ? null : html`<div className="feed-inline">
+        <${FeedPanel} logs=${props.logs} players=${props.players} achById=${props.achById} />
+      </div>`}
     </main>`;
   }
 
@@ -1585,6 +1607,8 @@
     var totalLogs = 0;
     Object.keys(props.myDone).forEach(function (k) { totalLogs += props.myDone[k]; });
     var _a = useState(false), confirmingReopen = _a[0], setConfirmingReopen = _a[1];
+    var _b = useState(null), adjustingId = _b[0], setAdjustingId = _b[1];
+    var _c = useState(''), adjRaw = _c[0], setAdjRaw = _c[1];
     return html`<main>
       <section className="card">
         <span className="eyebrow">Honour system \u2014 tap to log it, repeats welcome</span>
@@ -1594,20 +1618,39 @@
         <ul className="ach-list">
           ${props.game.achievements.map(function (a) {
             var count = props.myDone[a.id] || 0;
+            var adjusting = adjustingId === a.id;
+            var adjNum = parseInt(adjRaw, 10) || 0;
             return html`<li key=${a.id} className="log-item">
               <button className=${'log-row' + (count > 0 ? ' log-row-done' : '')} disabled=${props.busy}
-                onClick=${function () { props.onLog(a); }} aria-label=${'Log \u201C' + a.title + '\u201D again'}>
+                onClick=${function () {
+                  if (a.adjustable) { setAdjustingId(adjusting ? null : a.id); setAdjRaw(''); }
+                  else props.onLog(a, 0);
+                }} aria-label=${'Log \u201C' + a.title + '\u201D again'}>
                 <span className=${'check' + (count > 0 ? ' check-on' : '')} aria-hidden="true">
                   ${count > 0 ? html`<span className="check-count">${count}\u00D7</span>` : null}
                 </span>
                 <div className="ach-main">
                   <div className="ach-title">${a.title}</div>
                   ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
+                  ${a.adjustable ? html`<span className="adjustable-tag">adjustable</span>` : null}
                 </div>
                 <${Pts} value=${a.points} plus=${true} big=${count > 0} />
               </button>
               ${count > 0 ? html`<button className="btn-minus" disabled=${props.busy}
                 onClick=${function () { props.onUnlog(a); }} aria-label=${'Remove one log of \u201C' + a.title + '\u201D'}>\u2212</button>` : null}
+              ${adjusting ? html`<div className="adj-panel">
+                <span className="field-label">Adjustment points \u2014 base is ${fmtPts(a.points)}. Add extra for harder circumstances
+                  (or a negative number for easier ones).</span>
+                <div className="adj-row">
+                  <input className="input" type="number" inputMode="numeric" value=${adjRaw} placeholder="0"
+                    onInput=${function (e) { setAdjRaw(e.target.value); }} />
+                  <button className="btn btn-secondary" onClick=${function () { setAdjustingId(null); setAdjRaw(''); }}>Cancel</button>
+                  <button className="btn btn-primary" disabled=${props.busy || a.points + adjNum < 0}
+                    onClick=${function () { props.onLog(a, adjNum); setAdjustingId(null); setAdjRaw(''); }}>
+                    Log +${fmtPts(a.points + adjNum)}
+                  </button>
+                </div>
+              </div>` : null}
             </li>`;
           })}
         </ul>
@@ -1637,13 +1680,18 @@
     var p = props.player;
     if (!p) return html`<p className="muted">This player is no longer in the game.</p>`;
     var when = {};
+    var earned = {};
     props.logs.forEach(function (lg) {
-      if (lg.playerId === p.id) when[lg.achId] = lg.at; /* latest log wins */
+      if (lg.playerId !== p.id) return;
+      var a0 = props.achById[lg.achId];
+      if (!a0) return;
+      when[lg.achId] = lg.at; /* latest log wins */
+      earned[lg.achId] = (earned[lg.achId] || 0) + a0.points + (lg.adj || 0);
     });
     var doneCounts = props.scores.done[p.id] || {};
     var rows = Object.keys(doneCounts).map(function (achId) {
       var a = props.achById[achId];
-      return a ? { title: a.title, count: doneCounts[achId], pts: a.points * doneCounts[achId], at: when[achId] } : null;
+      return a ? { title: a.title, count: doneCounts[achId], pts: earned[achId] || 0, at: when[achId] } : null;
     }).filter(Boolean).sort(function (x, y) { return (y.at || 0) - (x.at || 0); });
     var total = props.scores.totals[p.id] || 0;
     var totalLogs = props.scores.counts[p.id] || 0;

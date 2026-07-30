@@ -234,6 +234,7 @@
     display: flex; flex-direction: column; gap: 1px;
   }
   .board-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .board-name-text { min-width: 64px; }
   .board-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .board-sub { font-size: 12.5px; font-weight: 500; color: var(--muted); }
   .me-tag { font-weight: 400; color: var(--muted); font-size: 0.9em; }
@@ -280,6 +281,38 @@
     display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700;
     background: var(--chip-bg); color: var(--chip-ink); border-radius: 6px; padding: 1px 6px;
   }
+  .adj-tag {
+    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700;
+    background: var(--warn-bg); color: var(--warn-text); border-radius: 6px; padding: 1px 6px;
+    white-space: nowrap;
+  }
+  .adjustable-tag {
+    display: inline-block; margin-top: 5px; font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    background: var(--warn-bg); color: var(--warn-text); border-radius: 6px; padding: 2px 7px;
+  }
+  .field-check {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 13.5px; color: var(--muted); cursor: pointer;
+  }
+  .field-check strong { color: var(--ink); }
+  .field-check input {
+    width: 20px; height: 20px; margin-top: 1px; flex-shrink: 0; accent-color: var(--ink);
+  }
+  .adj-panel {
+    width: 100%; background: var(--surface-2); border-radius: 12px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .adj-row { display: flex; gap: 8px; align-items: stretch; }
+  .adj-row .input { max-width: 130px; }
+  .adj-row .btn-primary { flex: 1; white-space: nowrap; }
+  .feed-empty {
+    min-height: 220px; display: grid; place-items: center; text-align: center;
+    background: var(--surface-2); border: 1px dashed var(--line-strong);
+    border-radius: 12px; padding: 24px 18px; color: var(--muted);
+  }
+  .feed-empty-title { font-weight: 700; font-size: 15.5px; color: var(--ink); margin-bottom: 4px; }
+  .feed-empty p { margin: 0; font-size: 14px; }
   .side-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .side-head .h2 { margin-bottom: 6px; }
   .notify-on { margin: 0; white-space: nowrap; }
@@ -287,7 +320,7 @@
   /* ---------- two-column desktop layout: game left, live feed right ---------- */
   .columns { display: block; }
   .side-feed { display: none; }
-  @media (min-width: 1000px) {
+  @media (min-width: 960px) {
     .shell { margin: 0 auto 0 max(20px, 4vw); }
     .shell-wide { max-width: 1060px; }
     .shell-wide .columns {
@@ -321,7 +354,7 @@
     transition: background 0.12s ease, border-color 0.12s ease;
   }
   .check-count { font-size: 12.5px; font-weight: 700; letter-spacing: -0.02em; }
-  .log-item { display: flex; gap: 8px; align-items: stretch; }
+  .log-item { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
   .log-item .log-row { flex: 1; min-width: 0; }
   .btn-minus {
     width: 50px; border-radius: 12px; border: 1px solid var(--line);
