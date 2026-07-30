@@ -14,6 +14,14 @@ const path = require('path');
   const api = {
     __fbGet: (p) => (db[p] === undefined ? null : db[p]),
     __fbSet: (p, v) => { db[p] = v; },
+    __fbUpdate: (p, patch) => {
+      if (typeof db[p] !== 'object' || db[p] === null) db[p] = {};
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null) delete db[p][k];
+        else db[p][k] = v;
+      }
+      db[p] = { ...db[p] }; // new identity so pollers see the change
+    },
     __authSignUp: (email, password) => {
       const e = email.toLowerCase();
       if (!/^[^@]+@[^@]+\.[^@]+$/.test(e)) return { error: 'auth/invalid-email' };
@@ -83,6 +91,7 @@ const path = require('path');
                   _timers: [],
                   once: async function () { const v = await window.__fbGet(p); return { val: () => v }; },
                   set: async function (v) { await window.__fbSet(p, v); },
+                  update: async function (patch) { await window.__fbUpdate(p, patch); },
                   on: function (evt, cb) {
                     let last;
                     const tick = async () => {
@@ -235,6 +244,42 @@ const path = require('path');
     await b.reload();
     await b.waitForSelector('.seg-btn:has-text("Leaderboard")', { timeout: 8000 });
     if (!/Ben/.test(await b.textContent('.board-row-me'))) throw new Error('logged out after reload');
+  });
+
+  await step('RACE: two players joining at once both appear', async () => {
+    const [d, e] = await Promise.all([newDevice(), newDevice()]);
+    async function join(p, email, name) {
+      await signUp(p, email, 'pass' + name);
+      await p.waitForSelector('text=Join the game', { timeout: 8000 });
+      await p.fill('.input-code', joinCode);
+      await p.click('button:has-text("Continue")');
+      await p.fill(NAME, name);
+      await p.click('button:has-text("Join game")');
+    }
+    await Promise.all([join(d, 'dana@example.com', 'Dana'), join(e, 'eli@example.com', 'Eli')]);
+    // everyone must survive on A's live board: Ada, Ben, Dana, Eli
+    await a.waitForSelector('.board-row:has-text("Dana")', { timeout: 6000 });
+    await a.waitForSelector('.board-row:has-text("Eli")', { timeout: 6000 });
+    if (await a.locator('.board-row').count() !== 4) {
+      throw new Error('players lost in concurrent join: ' + JSON.stringify(await a.locator('.board-row').allTextContents()));
+    }
+  });
+  await step('RACE: two players ticking at once both count', async () => {
+    const pages = await Promise.all([newDevice(), newDevice()]);
+    await Promise.all(pages.map(async (p, i) => {
+      const email = i === 0 ? 'dana@example.com' : 'eli@example.com';
+      await p.fill('input[type="email"]', email);
+      await p.fill('input[autocomplete="current-password"]', 'pass' + (i === 0 ? 'Dana' : 'Eli'));
+      await p.click('button[type="submit"]');
+      await p.waitForSelector('.seg-btn:has-text("Achievements")', { timeout: 8000 });
+      await p.click('.seg-btn:has-text("Achievements")');
+      await p.waitForSelector('.log-row:has-text("Read a book")');
+    }));
+    await Promise.all(pages.map(p => p.click('.log-row:has-text("Read a book")')));
+    await Promise.all(pages.map(p => p.waitForSelector('.log-row-done', { timeout: 6000 })));
+    // both ticks must survive: Dana and Eli each on 10 on A's live board
+    await a.waitForSelector('.board-row:has-text("Dana") >> text=10', { timeout: 6000 });
+    await a.waitForSelector('.board-row:has-text("Eli") >> text=10', { timeout: 6000 });
   });
 
   // Device C = a different browser entirely: log in as Ben, get Ben's profile back

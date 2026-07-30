@@ -88,7 +88,7 @@ and writing per-path rules — worth doing only if someone actually starts cheat
 
 The app picks a backend at boot:
 
-- `window.FIREBASE_CONFIG` set → Firebase Realtime Database at `alg/game`, `alg/players`, `alg/logs` (JSON strings), with `on('value')` listeners for live updates; device identity in `localStorage`.
+- `window.FIREBASE_CONFIG` set → Firebase Realtime Database with `on('value')` listeners for live updates. The game document lives at `alg/game`; players and logs are stored **one record per child** (`alg/players/<uid>`, `alg/logs/<logId>`) and written with `update()`, so simultaneous joins or ticks never overwrite each other. Legacy single-blob rosters/logs are migrated on first write.
 - `window.storage` available (Claude artifact) → the same three keys as shared storage; identity in a private key; manual Refresh.
 - Neither → in-page demo mode with a warning banner.
 

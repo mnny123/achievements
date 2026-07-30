@@ -818,11 +818,46 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     memStore[key] = str;
   }
 
+  /* In Firebase mode the roster and logs are stored one record per child
+   * (alg/players/<uid>, alg/logs/<logId>) and written with update(), so
+   * simultaneous joins or ticks can never overwrite each other. These
+   * normalizers accept every shape: per-child records, the legacy
+   * single-JSON-blob format, and the whole-document shape the
+   * non-Firebase builds still use. */
+  function normalizePlayers(v) {
+    if (!v) return {};
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return {}; } }
+    if (v.players && typeof v.players === 'object') return v.players;
+    var map = {};
+    Object.keys(v).forEach(function (k) {
+      var p = v[k];
+      if (typeof p === 'string') { try { p = JSON.parse(p); } catch (e) { p = null; } }
+      if (p && p.id && p.name !== undefined) map[p.id] = p;
+    });
+    return map;
+  }
+  function normalizeLogs(v) {
+    if (!v) return [];
+    if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return []; } }
+    if (Array.isArray(v)) return v;
+    if (Array.isArray(v.logs)) return v.logs;
+    var arr = [];
+    Object.keys(v).forEach(function (k) {
+      var lg = v[k];
+      if (typeof lg === 'string') { try { lg = JSON.parse(lg); } catch (e) { lg = null; } }
+      if (lg && lg.playerId && lg.achId) arr.push(lg);
+    });
+    arr.sort(function (a, b) { return (a.at || 0) - (b.at || 0); });
+    return arr;
+  }
+
   /* -> { ok, value } ; a key that does not exist yet is ok:true, value:null */
   async function storeGet(key, shared) {
     if (shared === undefined) shared = true;
     try {
       var v = await rawGet(key, shared);
+      if (MODE === 'firebase' && key === KEY_PLAYERS) return { ok: true, value: { players: normalizePlayers(v) } };
+      if (MODE === 'firebase' && key === KEY_LOGS) return { ok: true, value: { logs: normalizeLogs(v) } };
       if (v === null || v === undefined) return { ok: true, value: null };
       if (typeof v === 'string') {
         try { return { ok: true, value: JSON.parse(v) }; }
@@ -1139,7 +1174,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       function sub(key, apply) {
         var ref = FB.ref(fbPath(key));
         var cb = function (snap) {
-          apply(parse(snap.val()));
+          apply(snap.val());
           setStatus(function (s) { return s === 'ready' ? s : 'ready'; });
         };
         ref.on('value', cb, function (err) {
@@ -1148,9 +1183,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         return function () { ref.off('value', cb); };
       }
       var offs = [
-        sub(KEY_GAME, function (g) { setGame(g); }),
-        sub(KEY_PLAYERS, function (p) { setPlayers((p && p.players) || {}); }),
-        sub(KEY_LOGS, function (l) { setLogs((l && l.logs) || []); })
+        sub(KEY_GAME, function (g) { setGame(parse(g)); }),
+        sub(KEY_PLAYERS, function (p) { setPlayers(normalizePlayers(p)); }),
+        sub(KEY_LOGS, function (l) { setLogs(normalizeLogs(l)); })
       ];
       return function () { offs.forEach(function (off) { off(); }); };
     }, [authUser]);
@@ -1218,27 +1253,58 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       finally { setBusy(false); }
     }
 
+    /* write ONLY this player's record so simultaneous joins never clobber
+       each other; migrates a legacy single-blob roster on first write */
+    async function fbWritePlayer(doc) {
+      try {
+        var node = FB.ref(fbPath(KEY_PLAYERS));
+        var snap = await node.once('value');
+        var v = snap.val();
+        if (typeof v === 'string') {
+          var legacy = normalizePlayers(v);
+          var out = {};
+          Object.keys(legacy).forEach(function (id) { out[id] = JSON.stringify(legacy[id]); });
+          out[doc.id] = JSON.stringify(doc);
+          await node.set(out);
+        } else {
+          var patch = {};
+          patch[doc.id] = JSON.stringify(doc);
+          await node.update(patch);
+        }
+        return { ok: true };
+      } catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+    }
+
     async function saveProfile(profile, isNew) {
-      var res = await mutate(KEY_PLAYERS, { players: {} }, function (d) {
-        var existing = d.players[profile.id] || {};
-        d.players[profile.id] = {
-          id: profile.id,
-          name: profile.name,
-          avatar: profile.avatar !== undefined ? profile.avatar : (existing.avatar || null),
-          contact: profile.contact || existing.contact || null,
-          joinedAt: existing.joinedAt || Date.now(),
-          updatedAt: Date.now()
-        };
-        return d;
-      });
+      var rosterRes = await storeGet(KEY_PLAYERS);
+      if (!rosterRes.ok) return rosterRes;
+      var map = (rosterRes.value && rosterRes.value.players) || {};
+      var existing = map[profile.id] || {};
+      var doc = {
+        id: profile.id,
+        name: profile.name,
+        avatar: profile.avatar !== undefined ? profile.avatar : (existing.avatar || null),
+        contact: profile.contact || existing.contact || null,
+        joinedAt: existing.joinedAt || Date.now(),
+        updatedAt: Date.now()
+      };
+      var res;
+      if (MODE === 'firebase') {
+        res = await fbWritePlayer(doc);
+      } else {
+        res = await mutate(KEY_PLAYERS, { players: {} }, function (d) { d.players[doc.id] = doc; return d; });
+        if (res.ok) map = res.value.players;
+      }
       if (!res.ok) return res;
       if (isNew && MODE !== 'firebase') {
         /* without accounts, identity is remembered per device */
-        var idRes = await storeSet(KEY_ME, { playerId: profile.id }, false);
+        var idRes = await storeSet(KEY_ME, { playerId: doc.id }, false);
         if (!idRes.ok) return idRes;
-        setLocalId(profile.id);
+        setLocalId(doc.id);
       }
-      setPlayers((res.value && res.value.players) || {});
+      var next = Object.assign({}, map);
+      next[doc.id] = doc;
+      setPlayers(next);
       return { ok: true };
     }
 
@@ -1421,22 +1487,59 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       });
     }
 
-    /* tick = mark done (+points), untick = take it back off */
+    /* tick = mark done (+points), untick = take it back off.
+       Firebase mode touches only this player's own log records via
+       update(), so simultaneous ticks from other players are never lost. */
     async function toggleAchievement(ach) {
       return withBusy(async function () {
         var ticked = { current: false };
-        var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
-          var mine = function (lg) { return lg.playerId === myId && lg.achId === ach.id; };
-          if (d.logs.some(mine)) {
-            d.logs = d.logs.filter(function (lg) { return !mine(lg); });
-          } else {
-            ticked.current = true;
-            d.logs.push({ id: uid(), playerId: myId, achId: ach.id, at: Date.now() });
+        if (MODE === 'firebase') {
+          try {
+            var node = FB.ref(fbPath(KEY_LOGS));
+            var snap = await node.once('value');
+            var v = snap.val();
+            if (typeof v === 'string') {
+              /* legacy single-blob log list: expand to one record per log */
+              var out = {};
+              normalizeLogs(v).forEach(function (lg) { out[lg.id || uid()] = JSON.stringify(lg); });
+              await node.set(out);
+              v = out;
+            }
+            var patch = {};
+            var mineKeys = [];
+            Object.keys(v || {}).forEach(function (k) {
+              var lg = v[k];
+              if (typeof lg === 'string') { try { lg = JSON.parse(lg); } catch (e) { lg = null; } }
+              if (lg && lg.playerId === myId && lg.achId === ach.id) mineKeys.push(k);
+            });
+            if (mineKeys.length) {
+              mineKeys.forEach(function (k) { patch[k] = null; });
+            } else {
+              ticked.current = true;
+              var entry = { id: uid(), playerId: myId, achId: ach.id, at: Date.now() };
+              patch[entry.id] = JSON.stringify(entry);
+            }
+            await node.update(patch);
+            var after = await storeGet(KEY_LOGS);
+            if (after.ok) setLogs((after.value && after.value.logs) || []);
+          } catch (err) {
+            setErrorBanner('Couldn’t save that: ' + String((err && err.message) || err));
+            return;
           }
-          return d;
-        });
-        if (!res.ok) { setErrorBanner('Couldn’t save that: ' + res.error); return; }
-        setLogs(res.value.logs);
+        } else {
+          var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
+            var mine = function (lg) { return lg.playerId === myId && lg.achId === ach.id; };
+            if (d.logs.some(mine)) {
+              d.logs = d.logs.filter(function (lg) { return !mine(lg); });
+            } else {
+              ticked.current = true;
+              d.logs.push({ id: uid(), playerId: myId, achId: ach.id, at: Date.now() });
+            }
+            return d;
+          });
+          if (!res.ok) { setErrorBanner('Couldn’t save that: ' + res.error); return; }
+          setLogs(res.value.logs);
+        }
         showToast({
           msg: ticked.current
             ? '“' + ach.title + '” ticked — +' + fmtPts(ach.points) + ' pts'
