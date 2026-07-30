@@ -1637,6 +1637,7 @@
                 <span className="board-name">
                   <span className="board-name-line">
                     <span className="board-name-text">${row.player.name}${isMe ? html`<span className="me-tag"> (you)</span>` : null}</span>
+                    ${row.player.contribution != null ? html`<span className="contrib-tag">$${fmtPts(row.player.contribution)}</span>` : null}
                     ${props.game.creatorId === row.player.id ? html`<span className="creator-tag">creator</span>` : null}
                   </span>
                   ${isRoster ? html`<span className="board-sub">joined ${timeAgo(row.player.joinedAt)}</span>` : null}
@@ -1775,6 +1776,7 @@
           <h2 className="h2 stats-name">${p.name}${props.isMe ? html`<span className="me-tag"> (you)</span>` : null}</h2>
           <div className="stats-meta">
             <span>Joined ${timeAgo(p.joinedAt)}</span>
+            ${p.contribution != null ? html`<span className="stats-meta-dot">\u00B7</span><span>pitched in $${fmtPts(p.contribution)}</span>` : null}
             ${props.isMe && p.contact ? html`<span className="stats-meta-dot">·</span><span>${p.contact.display}</span>` : null}
           </div>
           ${props.onEdit ? html`<button className="btn btn-secondary btn-mini" onClick=${props.onEdit}>Edit profile</button>` : null}

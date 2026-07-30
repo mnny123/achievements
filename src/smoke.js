@@ -102,6 +102,8 @@ const path = require('path');
     await b.waitForSelector('text=hasn’t finalized it yet');
     await b.click('.seg-btn:has-text("Leaderboard")');
     await b.waitForSelector('.pool-num:has-text("$20")');   // 15 + 5, summed live
+    await b.waitForSelector('.board-row:has-text("Ada") .contrib-tag:has-text("$15")');
+    await b.waitForSelector('.board-row:has-text("Ben") .contrib-tag:has-text("$5")');
     await b.click('.seg-btn:has-text("Achievements")');
   });
   await step('B: cannot edit approved achievements', async () => {

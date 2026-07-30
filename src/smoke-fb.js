@@ -223,6 +223,9 @@ const path = require('path');
     await a.waitForSelector('text=No one’s done anything yet');
     // prize pool tracks the roster live: 2 players x $5
     await a.waitForSelector('.pool-num:has-text("$25")');
+    // each player's chosen contribution shows beside their name
+    await a.waitForSelector('.board-row:has-text("Ada") .contrib-tag:has-text("$20")');
+    await a.waitForSelector('.board-row:has-text("Ben") .contrib-tag:has-text("$5")');
     // the draft list is still reachable from the other tab
     await a.click('.seg-btn:has-text("Achievements")');
     await a.waitForSelector('text=You’re the game creator');
@@ -332,6 +335,9 @@ const path = require('path');
       throw new Error('players lost in concurrent join: ' + JSON.stringify(await a.locator('.board-row').allTextContents()));
     }
     await a.waitForSelector('text=2 of 4 players have pitched in');   // Dana and Eli haven't yet
+    if (await a.locator('.board-row:has-text("Dana") .contrib-tag').count() > 0) {
+      throw new Error('contribution tag shown for a player who has not pitched in');
+    }
     await a.waitForSelector('.pool-num:has-text("$25")');
   });
   await step('RACE: two players ticking at once both count', async () => {
