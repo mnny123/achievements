@@ -318,6 +318,12 @@
     border-radius: 12px; padding: 28px 20px; color: var(--muted);
   }
   .feed-empty-title { font-weight: 700; font-size: 15.5px; color: var(--ink); margin-bottom: 4px; }
+  .pool-card { text-align: center; }
+  .pool-num {
+    font-size: 42px; font-weight: 800; letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums; margin: 6px 0 2px;
+  }
+  .pool-sub { color: var(--muted); font-size: 13.5px; margin: 0; }
   .feed-empty p { margin: 0; font-size: 14px; }
   .side-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .side-head .h2 { margin-bottom: 6px; }
@@ -1833,6 +1839,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         <div className="col-main">${body}</div>
         ${showSide ? html`<aside className="side-feed">
           <${FeedPanel} logs=${logs} players=${players} achById=${achById} />
+          <${PoolCard} count=${Object.keys(players).length} />
         </aside>` : null}
       </div>
       ${statsFor ? html`<${Sheet} onClose=${function () { setStatsFor(null); }}>
@@ -2339,6 +2346,17 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     </section>`;
   }
 
+  /* live prize pool: $5 buy-in times everyone currently in the game */
+  var BUY_IN = 5;
+  function PoolCard(props) {
+    var n = props.count;
+    return html`<section className="card pool-card">
+      <span className="eyebrow">Prize pool</span>
+      <div className="pool-num">$${fmtPts(n * BUY_IN)}</div>
+      <p className="pool-sub">${n} ${n === 1 ? 'player' : 'players'} \u00D7 $${BUY_IN} buy-in \u2014 whoever wins takes the lot.</p>
+    </section>`;
+  }
+
   function BoardTab(props) {
     var mode = props.mode || 'live';
     var isRoster = mode === 'roster';
@@ -2383,6 +2401,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       </section>
       ${html`<div className="feed-inline">
         <${FeedPanel} logs=${props.logs} players=${props.players} achById=${props.achById} />
+        <${PoolCard} count=${Object.keys(props.players).length} />
       </div>`}
     </main>`;
   }

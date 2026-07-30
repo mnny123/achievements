@@ -213,6 +213,8 @@ const path = require('path');
     await a.waitForSelector('text=Scoring starts when the achievement list is finalized');
     await a.waitForSelector('.feed-empty');   // live feed box is present even before the game starts
     await a.waitForSelector('text=No one’s done anything yet');
+    // prize pool tracks the roster live: 2 players x $5
+    await a.waitForSelector('.pool-num:has-text("$10")');
     // the draft list is still reachable from the other tab
     await a.click('.seg-btn:has-text("Achievements")');
     await a.waitForSelector('text=You’re the game creator');
@@ -319,6 +321,7 @@ const path = require('path');
     if (await a.locator('.board-row').count() !== 4) {
       throw new Error('players lost in concurrent join: ' + JSON.stringify(await a.locator('.board-row').allTextContents()));
     }
+    await a.waitForSelector('.pool-num:has-text("$20")');   // pool grew live with the joins
   });
   await step('RACE: two players ticking at once both count', async () => {
     const pages = await Promise.all([newDevice(), newDevice()]);
@@ -348,6 +351,10 @@ const path = require('path');
     await wide.waitForSelector('.side-feed >> text=Live feed');
     await wide.waitForSelector('.side-feed >> text=now on');
     await wide.waitForSelector('.side-feed .adj-tag');
+    const feedBox = await wide.locator('.side-feed .card').first().boundingBox();
+    const poolBox = await wide.locator('.side-feed .pool-card').boundingBox();
+    if (!(poolBox.y > feedBox.y)) throw new Error('pool card not below the feed');
+    await wide.waitForSelector('.side-feed .pool-num:has-text("$20")');
     if (await wide.locator('.feed-inline').isVisible()) throw new Error('inline feed still visible on desktop');
     const mainBox = await wide.locator('.col-main').boundingBox();
     const sideBox = await wide.locator('.side-feed').boundingBox();

@@ -1050,6 +1050,7 @@
         <div className="col-main">${body}</div>
         ${showSide ? html`<aside className="side-feed">
           <${FeedPanel} logs=${logs} players=${players} achById=${achById} />
+          <${PoolCard} count=${Object.keys(players).length} />
         </aside>` : null}
       </div>
       ${statsFor ? html`<${Sheet} onClose=${function () { setStatsFor(null); }}>
@@ -1556,6 +1557,17 @@
     </section>`;
   }
 
+  /* live prize pool: $5 buy-in times everyone currently in the game */
+  var BUY_IN = 5;
+  function PoolCard(props) {
+    var n = props.count;
+    return html`<section className="card pool-card">
+      <span className="eyebrow">Prize pool</span>
+      <div className="pool-num">$${fmtPts(n * BUY_IN)}</div>
+      <p className="pool-sub">${n} ${n === 1 ? 'player' : 'players'} \u00D7 $${BUY_IN} buy-in \u2014 whoever wins takes the lot.</p>
+    </section>`;
+  }
+
   function BoardTab(props) {
     var mode = props.mode || 'live';
     var isRoster = mode === 'roster';
@@ -1600,6 +1612,7 @@
       </section>
       ${html`<div className="feed-inline">
         <${FeedPanel} logs=${props.logs} players=${props.players} achById=${props.achById} />
+        <${PoolCard} count=${Object.keys(props.players).length} />
       </div>`}
     </main>`;
   }
