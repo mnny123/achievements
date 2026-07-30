@@ -2,6 +2,7 @@
 
 A single-file points game for a school group. Open `achievement-leaderboard.html` as a Claude artifact.
 
+- Everyone signs up with an email address or phone number (format-validated only — there is no server, so no verification code is sent), then creates a display name and profile picture. Re-entering the same email/phone on another device signs back into the existing profile instead of creating a duplicate. Contact details are shown only to their owner, never to other players.
 - The first person to open it creates the game, sets a join code, and is the only one who can finalize the achievement list.
 - During the draft phase anyone can suggest achievements, but only the creator approves them onto the list (players can edit or withdraw their own pending suggestions); finalizing locks the list permanently and discards unapproved suggestions.
 - In play, players log achievements on the honour system (repeatable, one tap, undo last log) and compete on a shared leaderboard with profile pictures, per-player stats, and an activity feed.

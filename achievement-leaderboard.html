@@ -1,61 +1,63 @@
 <title>Achievement Leaderboard</title>
 <style>
-  /* ---------- tokens: varsity scoreboard (navy ground, gold = points) ---------- */
+  /* ---------- tokens: sleek monochrome (white/gray, graphite dark) ---------- */
   :root {
-    --bg: #EDF0F7;
+    --bg: #F6F6F7;
     --surface: #FFFFFF;
-    --surface-2: #F5F7FC;
-    --ink: #182038;
-    --muted: #5B657E;
-    --line: #DCE2EF;
-    --accent: #2C4FD8;
+    --surface-2: #F2F2F3;
+    --ink: #141417;
+    --muted: #6F6F78;
+    --line: #E5E5E9;
+    --accent: #141417;
     --accent-ink: #FFFFFF;
-    --accent-soft: #E4E9FB;
-    --gold-text: #8A5F04;
-    --gold-bg: #FBEECB;
-    --good: #1E8E62;
-    --danger: #C23A2B;
-    --danger-soft: #F9E4E1;
-    --warn-bg: #FBF3D9;
-    --warn-text: #6E5410;
-    --shadow: 0 1px 2px rgba(24, 32, 56, 0.06), 0 8px 24px rgba(24, 32, 56, 0.07);
+    --accent-soft: #ECECEF;
+    --chip-bg: #E8E8EB;
+    --chip-ink: #141417;
+    --good: #1F8A5D;
+    --good-ink: #FFFFFF;
+    --danger: #C24034;
+    --danger-soft: #F7E8E6;
+    --warn-bg: #F1EDDF;
+    --warn-text: #6B5D22;
+    --shadow: 0 1px 2px rgba(20, 20, 23, 0.04), 0 6px 20px rgba(20, 20, 23, 0.05);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0D1220;
-      --surface: #171E33;
-      --surface-2: #1E2640;
-      --ink: #E8ECF8;
-      --muted: #939DBC;
-      --line: #2B3452;
-      --accent: #7A90FF;
-      --accent-ink: #0D1220;
-      --accent-soft: #232E55;
-      --gold-text: #F2C566;
-      --gold-bg: #3A3012;
-      --good: #4CC495;
-      --danger: #F08575;
-      --danger-soft: #42201B;
-      --warn-bg: #372E10;
-      --warn-text: #EBD48A;
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+      --bg: #121214;
+      --surface: #1A1A1D;
+      --surface-2: #222226;
+      --ink: #F2F2F4;
+      --muted: #9A9AA4;
+      --line: #2C2C31;
+      --accent: #F2F2F4;
+      --accent-ink: #141417;
+      --accent-soft: #26262B;
+      --chip-bg: #2E2E34;
+      --chip-ink: #F2F2F4;
+      --good: #3FAE7C;
+      --good-ink: #10130F;
+      --danger: #E4796C;
+      --danger-soft: #3A211D;
+      --warn-bg: #34301D;
+      --warn-text: #DFD09A;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
     }
   }
   :root[data-theme="light"] {
-    --bg: #EDF0F7; --surface: #FFFFFF; --surface-2: #F5F7FC; --ink: #182038;
-    --muted: #5B657E; --line: #DCE2EF; --accent: #2C4FD8; --accent-ink: #FFFFFF;
-    --accent-soft: #E4E9FB; --gold-text: #8A5F04; --gold-bg: #FBEECB;
-    --good: #1E8E62; --danger: #C23A2B; --danger-soft: #F9E4E1;
-    --warn-bg: #FBF3D9; --warn-text: #6E5410;
-    --shadow: 0 1px 2px rgba(24, 32, 56, 0.06), 0 8px 24px rgba(24, 32, 56, 0.07);
+    --bg: #F6F6F7; --surface: #FFFFFF; --surface-2: #F2F2F3; --ink: #141417;
+    --muted: #6F6F78; --line: #E5E5E9; --accent: #141417; --accent-ink: #FFFFFF;
+    --accent-soft: #ECECEF; --chip-bg: #E8E8EB; --chip-ink: #141417;
+    --good: #1F8A5D; --good-ink: #FFFFFF; --danger: #C24034; --danger-soft: #F7E8E6;
+    --warn-bg: #F1EDDF; --warn-text: #6B5D22;
+    --shadow: 0 1px 2px rgba(20, 20, 23, 0.04), 0 6px 20px rgba(20, 20, 23, 0.05);
   }
   :root[data-theme="dark"] {
-    --bg: #0D1220; --surface: #171E33; --surface-2: #1E2640; --ink: #E8ECF8;
-    --muted: #939DBC; --line: #2B3452; --accent: #7A90FF; --accent-ink: #0D1220;
-    --accent-soft: #232E55; --gold-text: #F2C566; --gold-bg: #3A3012;
-    --good: #4CC495; --danger: #F08575; --danger-soft: #42201B;
-    --warn-bg: #372E10; --warn-text: #EBD48A;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --bg: #121214; --surface: #1A1A1D; --surface-2: #222226; --ink: #F2F2F4;
+    --muted: #9A9AA4; --line: #2C2C31; --accent: #F2F2F4; --accent-ink: #141417;
+    --accent-soft: #26262B; --chip-bg: #2E2E34; --chip-ink: #F2F2F4;
+    --good: #3FAE7C; --good-ink: #10130F; --danger: #E4796C; --danger-soft: #3A211D;
+    --warn-bg: #34301D; --warn-text: #DFD09A;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
   html { background: var(--bg); }
@@ -78,12 +80,12 @@
   }
 
   /* ---------- type ---------- */
-  .h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
-  .h2 { font-size: 19px; font-weight: 800; letter-spacing: -0.015em; margin: 2px 0 10px; text-wrap: balance; }
-  .h3 { font-size: 15px; font-weight: 700; margin: 18px 0 8px; }
+  .h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.015em; margin: 2px 0 10px; text-wrap: balance; }
+  .h3 { font-size: 15px; font-weight: 650; margin: 18px 0 8px; }
   .eyebrow {
-    display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.09em; color: var(--muted);
+    display: block; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted);
   }
   .muted { color: var(--muted); margin: 0 0 12px; }
   .hint { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
@@ -101,9 +103,9 @@
   .topbar-actions { display: flex; align-items: center; gap: 8px; }
   .topbar-avatar { background: none; border: none; padding: 0; cursor: pointer; border-radius: 50%; }
   .btn-refresh {
-    width: 48px; height: 48px; border-radius: 14px;
+    width: 44px; height: 44px; border-radius: 12px;
     border: 1px solid var(--line); background: var(--surface); cursor: pointer;
-    font-size: 22px; line-height: 1; display: grid; place-items: center;
+    font-size: 20px; line-height: 1; display: grid; place-items: center; color: var(--muted);
   }
   .refresh-icon { display: inline-block; }
   .spinning .refresh-icon { animation: spin 0.9s linear infinite; }
@@ -114,155 +116,184 @@
 
   /* ---------- cards & banners ---------- */
   .card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-    box-shadow: var(--shadow); padding: 18px 16px; margin: 14px 0;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 20px 18px; margin: 14px 0;
   }
   .banner {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-    border-radius: 14px; padding: 12px 14px; margin: 12px 0; font-size: 14px;
+    border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: 14px;
   }
   .banner-warn { background: var(--warn-bg); color: var(--warn-text); }
   .banner-error { background: var(--danger-soft); color: var(--danger); }
   .banner-x { background: none; border: none; font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px; }
 
   .status-line {
-    background: var(--accent-soft); color: var(--ink);
-    border-radius: 14px; padding: 12px 14px; margin: 12px 0; font-size: 14px;
+    background: var(--surface); border: 1px solid var(--line); color: var(--muted);
+    border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: 14px;
   }
-  .status-creator { border: 1px dashed var(--accent); }
+  .status-creator { border: 1px dashed var(--muted); color: var(--ink); }
 
   /* ---------- buttons & fields ---------- */
   .btn {
-    border-radius: 14px; border: 1px solid var(--line); background: var(--surface-2);
-    padding: 12px 18px; min-height: 48px; font-weight: 700; cursor: pointer;
+    border-radius: 11px; border: 1px solid var(--line); background: var(--surface);
+    padding: 12px 18px; min-height: 48px; font-weight: 600; cursor: pointer;
   }
   .btn:disabled { opacity: 0.45; cursor: default; }
   .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .btn-secondary { background: var(--surface-2); }
-  .btn-block { display: block; width: 100%; margin-top: 14px; }
-  .btn-mini { min-height: 36px; padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+  .btn-block { display: block; width: 100%; margin-top: 16px; }
+  .btn-mini { min-height: 36px; padding: 6px 12px; font-size: 13px; border-radius: 9px; }
   .btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
-  .btn:focus-visible, .tab:focus-visible, .board-row:focus-visible, .log-row:focus-visible {
-    outline: 3px solid var(--accent); outline-offset: 2px;
+  .btn-approve { background: var(--good); border-color: var(--good); color: var(--good-ink); }
+  .btn:focus-visible, .tab:focus-visible, .board-row:focus-visible, .log-row:focus-visible,
+  .photo-target:focus-visible, .link-btn:focus-visible {
+    outline: 2px solid var(--ink); outline-offset: 2px;
+  }
+  .link-btn {
+    background: none; border: none; padding: 6px 4px; cursor: pointer;
+    font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: underline;
   }
 
-  .field { display: block; margin: 12px 0; }
-  .field-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+  .field { display: block; margin: 14px 0; }
+  .field-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
   .input {
     width: 100%; min-height: 48px; padding: 10px 14px; font: inherit;
-    border-radius: 14px; border: 1px solid var(--line);
-    background: var(--surface-2); color: var(--ink);
+    border-radius: 11px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink);
   }
-  .input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+  .input::placeholder { color: var(--muted); opacity: 0.6; }
+  .input:focus { outline: 2px solid var(--ink); outline-offset: 0; border-color: var(--ink); }
   .input-code {
-    font-size: 22px; font-weight: 800; letter-spacing: 0.25em; text-transform: uppercase;
+    font-size: 21px; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase;
     font-variant-numeric: tabular-nums;
   }
   .field-points .input { max-width: 140px; font-variant-numeric: tabular-nums; }
   .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+  .form-actions-split { justify-content: space-between; margin-top: 16px; }
+  .form-actions-split .btn-primary { flex: 1; margin-left: 10px; }
 
   .privacy-note {
-    background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
-    padding: 12px 14px; font-size: 13.5px; color: var(--muted); margin: 14px 0 0;
+    background: var(--surface-2); border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; color: var(--muted); margin: 16px 0 0; line-height: 1.5;
   }
   .privacy-note strong { color: var(--ink); }
 
+  .contact-line {
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--surface-2); border-radius: 12px; padding: 12px 14px; margin: 14px 0 0;
+  }
+  .contact-line .field-label { margin: 0; }
+  .contact-value { font-weight: 600; overflow-wrap: anywhere; }
+
   /* ---------- avatars & points ---------- */
   .avatar { border-radius: 50%; object-fit: cover; flex-shrink: 0; display: block; }
-  .avatar-fallback {
-    display: grid; place-items: center; color: #fff; font-weight: 800;
-  }
+  .avatar-fallback { display: grid; place-items: center; color: #fff; font-weight: 700; }
   .pts {
-    display: inline-block; background: var(--gold-bg); color: var(--gold-text);
-    font-weight: 800; font-variant-numeric: tabular-nums;
-    border-radius: 999px; padding: 3px 10px; font-size: 14px; white-space: nowrap;
+    display: inline-block; background: var(--chip-bg); color: var(--chip-ink);
+    font-weight: 700; font-variant-numeric: tabular-nums;
+    border-radius: 999px; padding: 3px 10px; font-size: 13.5px; white-space: nowrap;
   }
-  .pts-big { font-size: 16px; padding: 5px 12px; }
-  .pts-unit { font-size: 0.72em; font-weight: 700; opacity: 0.75; }
+  .pts-big { font-size: 15px; padding: 5px 13px; background: var(--ink); color: var(--surface); }
+  .pts-unit { font-size: 0.72em; font-weight: 600; opacity: 0.7; }
   .count-chip {
-    display: inline-block; background: var(--accent-soft); color: var(--ink);
-    font-size: 13px; font-weight: 700; border-radius: 999px; padding: 2px 10px;
-    vertical-align: 2px; margin-left: 4px;
+    display: inline-block; background: var(--chip-bg); color: var(--chip-ink);
+    font-size: 13px; font-weight: 600; border-radius: 999px; padding: 2px 10px;
+    vertical-align: 2px; margin-left: 4px; font-variant-numeric: tabular-nums;
   }
 
   /* ---------- profile form ---------- */
-  .photo-row { display: flex; align-items: center; gap: 14px; margin: 6px 0 2px; }
-  .photo-col { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-  .photo-col .hint { margin: 0; }
+  .profile-fields { margin: 6px 0 2px; }
+  .photo-stack { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 4px; }
+  .photo-target {
+    position: relative; background: none; border: none; padding: 0; cursor: pointer; border-radius: 50%;
+  }
+  .photo-target .avatar { box-shadow: 0 0 0 1px var(--line), var(--shadow); }
+  .photo-fab {
+    position: absolute; right: -2px; bottom: -2px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center;
+    box-shadow: 0 0 0 2.5px var(--surface);
+  }
+  .photo-hint { margin: 4px 0 0; text-align: center; max-width: 320px; }
 
   /* ---------- achievement lists ---------- */
   .ach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .ach-row {
     display: flex; gap: 12px; justify-content: space-between; align-items: flex-start;
-    background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
   }
   .ach-row-editing { display: block; }
   .ach-main { min-width: 0; }
-  .ach-title { font-weight: 700; }
+  .ach-title { font-weight: 650; }
   .ach-desc { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
   .ach-by { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
   .ach-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
   .ach-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  .ach-row-pending { border-style: dashed; }
+  .ach-row-pending { border-style: dashed; background: var(--surface-2); }
   .pending-badge {
-    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; font-style: normal;
+    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 600; font-style: normal;
     background: var(--warn-bg); color: var(--warn-text); border-radius: 6px; padding: 2px 7px;
   }
-  .btn-approve { background: var(--good); border-color: var(--good); color: #fff; }
 
   .log-row {
     width: 100%; display: flex; gap: 12px; justify-content: space-between; align-items: center;
-    background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
     padding: 14px; min-height: 64px; cursor: pointer; text-align: left;
   }
-  .log-row:active { background: var(--accent-soft); border-color: var(--accent); }
+  .log-row:active { background: var(--accent-soft); border-color: var(--ink); }
   .undo-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
   /* ---------- leaderboard ---------- */
   .board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .board-row {
     width: 100%; display: flex; align-items: center; gap: 12px;
-    background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
     padding: 10px 14px; min-height: 64px; cursor: pointer; text-align: left;
   }
-  .board-row-me { border-color: var(--accent); background: var(--accent-soft); }
+  .board-row-me { border-color: var(--ink); background: var(--accent-soft); }
   .board-rank {
-    width: 34px; text-align: center; font-weight: 800; font-size: 17px;
+    width: 30px; height: 30px; display: grid; place-items: center;
+    font-weight: 700; font-size: 15px; color: var(--muted);
     font-variant-numeric: tabular-nums; flex-shrink: 0;
   }
+  .board-rank-top { background: var(--ink); color: var(--surface); border-radius: 50%; }
   .board-name {
-    flex: 1; min-width: 0; font-weight: 700; overflow: hidden;
+    flex: 1; min-width: 0; font-weight: 650; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .me-tag { font-weight: 400; color: var(--muted); font-size: 0.9em; }
   .creator-tag {
-    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+    display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
-    background: var(--gold-bg); color: var(--gold-text);
-    border-radius: 6px; padding: 2px 6px; vertical-align: 2px;
+    background: var(--chip-bg); color: var(--muted);
+    border-radius: 5px; padding: 2px 6px; vertical-align: 2px;
   }
 
   /* ---------- summary / stats ---------- */
-  .summary-row { display: flex; gap: 10px; margin: 12px 0; }
+  .summary-row { display: flex; gap: 10px; margin: 14px 0; }
   .summary-stat {
-    flex: 1; background: var(--surface-2); border: 1px solid var(--line);
-    border-radius: 14px; padding: 12px; text-align: center;
+    flex: 1; background: var(--surface-2); border-radius: 12px; padding: 14px 12px; text-align: center;
   }
-  .summary-num { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-  .summary-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
-  .stats-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .stats-head .h2 { margin: 0; }
+  .summary-num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .summary-label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+  .stats-head { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 8px 0 4px; }
+  .stats-head .avatar { box-shadow: 0 0 0 1px var(--line), var(--shadow); }
+  .stats-name { margin: 4px 0 0; }
+  .stats-meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;
+    color: var(--muted); font-size: 13.5px;
+  }
+  .stats-meta-dot { opacity: 0.5; }
   .breakdown { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .breakdown-row {
     display: flex; align-items: center; gap: 10px;
-    background: var(--surface-2); border-radius: 12px; padding: 10px 12px;
+    background: var(--surface-2); border-radius: 11px; padding: 10px 12px;
   }
   .breakdown-title { flex: 1; min-width: 0; font-weight: 600; }
-  .breakdown-count { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .breakdown-count { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; }
 
-  .confirm-box {
-    background: var(--danger-soft); border-radius: 14px; padding: 14px; margin-top: 12px;
-  }
+  .confirm-box { background: var(--danger-soft); border-radius: 12px; padding: 14px; margin-top: 12px; }
   .confirm-box p { margin: 0 0 10px; }
   .card-finalize { border-style: dashed; }
 
@@ -275,26 +306,25 @@
   /* ---------- tab bar ---------- */
   .tabbar {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-    display: flex; justify-content: center; gap: 4px;
+    display: flex; justify-content: center; gap: 6px;
     background: var(--surface); border-top: 1px solid var(--line);
-    padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
   }
   .tab {
-    flex: 1; max-width: 120px; min-height: 56px; border: none; background: none; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    font-size: 12px; font-weight: 700; color: var(--muted); border-radius: 12px;
+    flex: 1; max-width: 118px; min-height: 48px; border: none; background: none; cursor: pointer;
+    display: grid; place-items: center;
+    font-size: 13.5px; font-weight: 600; color: var(--muted); border-radius: 11px;
   }
-  .tab-icon { font-size: 20px; }
-  .tab-active { color: var(--accent); background: var(--accent-soft); }
+  .tab-active { color: var(--accent-ink); background: var(--accent); }
 
   /* ---------- sheet & toast ---------- */
   .sheet-backdrop {
-    position: fixed; inset: 0; z-index: 40; background: rgba(10, 14, 26, 0.55);
+    position: fixed; inset: 0; z-index: 40; background: rgba(12, 12, 14, 0.5);
     display: flex; align-items: flex-end; justify-content: center;
   }
   .sheet {
     position: relative; width: 100%; max-width: 520px; max-height: 85vh; overflow-y: auto;
-    background: var(--bg); border-radius: 22px 22px 0 0; padding: 20px 16px 30px;
+    background: var(--bg); border-radius: 18px 18px 0 0; padding: 20px 16px 30px;
     animation: sheet-up 0.22s ease-out;
   }
   @keyframes sheet-up { from { transform: translateY(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
@@ -302,7 +332,7 @@
   .sheet-close {
     position: absolute; top: 12px; right: 14px; z-index: 2;
     width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line);
-    background: var(--surface); font-size: 20px; cursor: pointer;
+    background: var(--surface); font-size: 20px; cursor: pointer; color: var(--muted);
   }
   .sheet .card { box-shadow: none; }
   .sheet main { margin-top: 8px; }
@@ -312,17 +342,17 @@
     bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 50;
     display: flex; align-items: center; gap: 14px;
     background: var(--ink); color: var(--bg);
-    border-radius: 999px; padding: 12px 20px; font-weight: 600; font-size: 14.5px;
+    border-radius: 999px; padding: 12px 20px; font-weight: 600; font-size: 14px;
     box-shadow: var(--shadow); max-width: calc(100vw - 32px);
   }
   .toast-undo {
-    background: none; border: none; color: inherit; font-weight: 800;
+    background: none; border: none; color: inherit; font-weight: 700;
     text-decoration: underline; cursor: pointer; padding: 4px;
   }
 
   .spinner {
     width: 36px; height: 36px; border-radius: 50%;
-    border: 4px solid var(--line); border-top-color: var(--accent);
+    border: 3px solid var(--line); border-top-color: var(--ink);
     animation: spin 0.8s linear infinite;
   }
   .ach-form { text-align: left; }
@@ -765,6 +795,28 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   }
   function fmtPts(n) { return n.toLocaleString(); }
 
+  /* accepts an email address or a phone number; returns null if it is neither */
+  function parseContact(raw) {
+    var v = (raw || '').trim();
+    if (!v) return null;
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) {
+      return { type: 'email', norm: v.toLowerCase(), display: v.toLowerCase() };
+    }
+    var digits = v.replace(/[\s\-().]/g, '');
+    if (/^\+?\d{7,15}$/.test(digits)) {
+      return { type: 'phone', norm: digits, display: v };
+    }
+    return null;
+  }
+  function findByContact(playersMap, norm) {
+    var ids = Object.keys(playersMap);
+    for (var i = 0; i < ids.length; i++) {
+      var p = playersMap[ids[i]];
+      if (p && p.contact && p.contact.norm === norm) return p;
+    }
+    return null;
+  }
+
   /* resize an uploaded photo to a 128x128 JPEG data URI on the client */
   function resizeImage(file) {
     return new Promise(function (resolve, reject) {
@@ -803,10 +855,10 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       return html`<img className="avatar" style=${style} src=${p.avatar} alt="" />`;
     }
     var name = (p && p.name) || '?';
-    var hue = 0;
+    var seed = 0;
     var id = (p && p.id) || name;
-    for (var i = 0; i < id.length; i++) hue = (hue * 31 + id.charCodeAt(i)) % 360;
-    style.background = 'hsl(' + hue + ', 45%, 42%)';
+    for (var i = 0; i < id.length; i++) seed = (seed * 31 + id.charCodeAt(i)) % 997;
+    style.background = 'hsl(240, 4%, ' + (26 + (seed % 5) * 7) + '%)';
     return html`<div className="avatar avatar-fallback" style=${style}>${name.trim().charAt(0).toUpperCase() || '?'}</div>`;
   }
 
@@ -839,18 +891,22 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
       }
     }
     return html`<div className="profile-fields">
-      <div className="photo-row">
-        <${Avatar} player=${{ id: props.idHint || 'x', name: props.name, avatar: props.avatar }} size=${72} />
-        <div className="photo-col">
-          <button type="button" className="btn btn-secondary" onClick=${pick}>
-            ${props.avatar ? 'Change photo' : 'Add a photo'}
-          </button>
-          ${props.imgStatus === 'working'
-            ? html`<div className="hint">Shrinking your photo…</div>`
-            : props.imgStatus
-              ? html`<div className="hint hint-error">${props.imgStatus} Your picture was not changed — try another photo.</div>`
-              : html`<div className="hint">Stored as a tiny 128×128 thumbnail.</div>`}
-        </div>
+      <div className="photo-stack">
+        <button type="button" className="photo-target" onClick=${pick} aria-label=${props.avatar ? 'Change photo' : 'Add a photo'}>
+          <${Avatar} player=${{ id: props.idHint || 'x', name: props.name, avatar: props.avatar }} size=${96} />
+          <span className="photo-fab" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+          </span>
+        </button>
+        ${props.imgStatus === 'working'
+          ? html`<div className="hint photo-hint">Shrinking your photo…</div>`
+          : props.imgStatus
+            ? html`<div className="hint hint-error photo-hint">${props.imgStatus} Your picture was not changed — try another photo.</div>`
+            : html`<div className="hint photo-hint">${props.avatar ? 'Tap your photo to change it.' : 'Tap to add a photo — stored as a tiny 128×128 thumbnail.'}</div>`}
+        ${props.avatar ? html`<button type="button" className="link-btn" onClick=${function () { props.onAvatar(null); props.onImgStatus && props.onImgStatus(null); }}>Remove photo</button>` : null}
         <input ref=${fileRef} type="file" accept="image/*" hidden onChange=${onFile} />
       </div>
       <label className="field">
@@ -962,7 +1018,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         d.players[profile.id] = {
           id: profile.id,
           name: profile.name,
-          avatar: profile.avatar || existing.avatar || null,
+          avatar: profile.avatar !== undefined ? profile.avatar : (existing.avatar || null),
+          contact: profile.contact || existing.contact || null,
           joinedAt: existing.joinedAt || Date.now(),
           updatedAt: Date.now()
         };
@@ -995,7 +1052,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           return gameDoc;
         });
         if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
-        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar }, true);
+        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: form.contact }, true);
         if (!pr.ok) { setErrorBanner('The game was created but saving your profile failed: ' + pr.error); return; }
         setGame(res.value);
         setErrorBanner(null);
@@ -1010,12 +1067,27 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
           setErrorBanner('That join code doesn’t match this game. Check it with the person who set the game up.');
           return;
         }
+        /* same email/phone as an existing player -> sign back into that profile
+           instead of creating a duplicate */
+        var roster = await storeGet(KEY_PLAYERS);
+        var rosterMap = (roster.ok && roster.value && roster.value.players) || {};
+        var existing = form.contact ? findByContact(rosterMap, form.contact.norm) : null;
+        if (existing) {
+          var idRes = await storeSet(KEY_ME, { playerId: existing.id }, false);
+          if (!idRes.ok) { setErrorBanner('Signing in failed: ' + idRes.error); return; }
+          setPlayers(rosterMap);
+          setMyId(existing.id);
+          setGame(fresh.value);
+          setErrorBanner(null);
+          showToast({ msg: 'Welcome back, ' + existing.name + ' — signed in to your existing profile.' });
+          return;
+        }
         var playerId = uid();
-        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar }, true);
+        var pr = await saveProfile({ id: playerId, name: form.name.trim(), avatar: form.avatar, contact: form.contact }, true);
         if (!pr.ok) { setErrorBanner('Joining failed: ' + pr.error); return; }
         setGame(fresh.value);
         setErrorBanner(null);
-        setTab(fresh.value.phase === 'play' ? 'board' : 'board');
+        setTab('board');
       });
     }
 
@@ -1206,7 +1278,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     if (!me) {
       return html`<div className="shell">
         ${headerBar}${banners}
-        <${JoinScreen} busy=${busy} phase=${game.phase} onJoin=${joinGame} />
+        <${JoinScreen} busy=${busy} phase=${game.phase} players=${players} onJoin=${joinGame} />
       </div>`;
     }
 
@@ -1229,12 +1301,9 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
         ${tab === 'me' ? html`<${StatsView} player=${me} logs=${logs} achById=${achById} scores=${scores}
           isMe=${true} onEdit=${function () { setEditingProfile(true); }} />` : null}
         <nav className="tabbar">
-          ${[['board', 'Board', '🏆'], ['log', 'Log', '➕'], ['feed', 'Feed', '📜'], ['me', 'Me', '👤']].map(function (t) {
+          ${[['board', 'Board'], ['log', 'Log'], ['feed', 'Feed'], ['me', 'Me']].map(function (t) {
             return html`<button key=${t[0]} className=${'tab' + (tab === t[0] ? ' tab-active' : '')}
-              onClick=${function () { setTab(t[0]); }}>
-              <span className="tab-icon" aria-hidden="true">${t[2]}</span>
-              <span>${t[1]}</span>
-            </button>`;
+              onClick=${function () { setTab(t[0]); }}>${t[1]}</button>`;
           })}
         </nav>
       <//>`;
@@ -1259,61 +1328,126 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   /* ---------------- onboarding screens ---------------- */
   function PrivacyNote() {
     return html`<div className="privacy-note">
-      <strong>Everything here is public to the group.</strong>${' '}
+      <strong>Everything in the game is public to the group.</strong>${' '}
       Your name, picture, score and activity are visible to everyone in the game.
+      Your email or phone number is used only to sign you in and is never shown to other players.
     </div>`;
   }
 
+  function ContactField(props) {
+    return html`<label className="field">
+      <span className="field-label">Email or mobile number</span>
+      <input className="input" type="text" inputMode="email" autoCapitalize="none" maxLength="60"
+        value=${props.value} placeholder="you@example.com or 0400 000 000"
+        onInput=${function (e) { props.onChange(e.target.value); }} />
+      ${props.error ? html`<div className="hint hint-error">${props.error}</div>` : null}
+    </label>`;
+  }
+
   function SetupScreen(props) {
-    var _a = useState(''), name = _a[0], setName = _a[1];
-    var _b = useState(null), avatar = _b[0], setAvatar = _b[1];
-    var _c = useState(null), imgStatus = _c[0], setImgStatus = _c[1];
+    var _a = useState(1), step = _a[0], setStep = _a[1];
+    var _b = useState(''), contactRaw = _b[0], setContactRaw = _b[1];
+    var _c = useState(null), contactErr = _c[0], setContactErr = _c[1];
     var _d = useState(makeJoinCode), joinCode = _d[0], setJoinCode = _d[1];
-    var canGo = name.trim().length > 0 && joinCode.trim().length >= 3 && !props.busy;
+    var _e = useState(''), name = _e[0], setName = _e[1];
+    var _f = useState(null), avatar = _f[0], setAvatar = _f[1];
+    var _g = useState(null), imgStatus = _g[0], setImgStatus = _g[1];
+
+    function next() {
+      var c = parseContact(contactRaw);
+      if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
+      if (joinCode.trim().length < 3) { setContactErr('The join code needs at least 3 characters.'); return; }
+      setContactErr(null);
+      setStep(2);
+    }
+
+    if (step === 1) {
+      return html`<main className="card">
+        <span className="eyebrow">New game · Step 1 of 2</span>
+        <h2 className="h2">Sign up</h2>
+        <p className="muted">No game exists here yet. Whoever sets it up becomes the <strong>game creator</strong> —
+          the only person who can approve achievements and finalize the list. Sign up to get started.</p>
+        <${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />
+        <label className="field">
+          <span className="field-label">Join code (share this with your group)</span>
+          <input className="input input-code" type="text" maxLength="10" value=${joinCode}
+            onInput=${function (e) { setJoinCode(e.target.value.toUpperCase()); }} />
+        </label>
+        <${PrivacyNote} />
+        <button className="btn btn-primary btn-block" onClick=${next}>Continue</button>
+      </main>`;
+    }
     return html`<main className="card">
-      <span className="eyebrow">New game</span>
-      <h2 className="h2">Set up the game</h2>
-      <p className="muted">No game exists here yet. Whoever sets it up becomes the <strong>game creator</strong> —
-        the only person who can finalize the achievement list later. Everyone else joins as a player.</p>
+      <span className="eyebrow">New game · Step 2 of 2</span>
+      <h2 className="h2">Create your profile</h2>
+      <p className="muted">This is how you’ll appear on the leaderboard and in the activity feed.</p>
       <${ProfileFields} name=${name} avatar=${avatar} imgStatus=${imgStatus}
         onName=${setName} onAvatar=${setAvatar} onImgStatus=${setImgStatus} />
-      <label className="field">
-        <span className="field-label">Join code (share this with your group)</span>
-        <input className="input input-code" type="text" maxLength="10" value=${joinCode}
-          onInput=${function (e) { setJoinCode(e.target.value.toUpperCase()); }} />
-      </label>
-      <${PrivacyNote} />
-      <button className="btn btn-primary btn-block" disabled=${!canGo}
-        onClick=${function () { props.onCreate({ name: name, avatar: avatar, joinCode: joinCode }); }}>
-        ${props.busy ? 'Creating…' : 'Create game'}
-      </button>
+      <div className="form-actions form-actions-split">
+        <button className="btn btn-secondary" onClick=${function () { setStep(1); }}>Back</button>
+        <button className="btn btn-primary" disabled=${!name.trim() || props.busy}
+          onClick=${function () { props.onCreate({ name: name, avatar: avatar, joinCode: joinCode, contact: parseContact(contactRaw) }); }}>
+          ${props.busy ? 'Creating…' : 'Create game'}
+        </button>
+      </div>
     </main>`;
   }
 
   function JoinScreen(props) {
-    var _a = useState(''), name = _a[0], setName = _a[1];
-    var _b = useState(null), avatar = _b[0], setAvatar = _b[1];
-    var _c = useState(null), imgStatus = _c[0], setImgStatus = _c[1];
+    var _a = useState(1), step = _a[0], setStep = _a[1];
+    var _b = useState(''), contactRaw = _b[0], setContactRaw = _b[1];
+    var _c = useState(null), contactErr = _c[0], setContactErr = _c[1];
     var _d = useState(''), code = _d[0], setCode = _d[1];
-    var canGo = name.trim().length > 0 && code.trim().length > 0 && !props.busy;
+    var _e = useState(''), name = _e[0], setName = _e[1];
+    var _f = useState(null), avatar = _f[0], setAvatar = _f[1];
+    var _g = useState(null), imgStatus = _g[0], setImgStatus = _g[1];
+
+    function next() {
+      var c = parseContact(contactRaw);
+      if (!c) { setContactErr('Enter a valid email address or mobile number.'); return; }
+      if (!code.trim()) { setContactErr('Enter the game’s join code.'); return; }
+      setContactErr(null);
+      /* already signed up on another device? go straight back in */
+      if (findByContact(props.players || {}, c.norm)) {
+        props.onJoin({ joinCode: code, contact: c, name: '', avatar: undefined });
+        return;
+      }
+      setStep(2);
+    }
+
+    if (step === 1) {
+      return html`<main className="card">
+        <span className="eyebrow">Join · Step 1 of 2</span>
+        <h2 className="h2">Sign up</h2>
+        ${props.phase === 'play'
+          ? html`<p className="muted">The achievement list is already locked — you’ll get the list as it stands and start on zero points.</p>`
+          : html`<p className="muted">The group is still drafting achievements. Sign up to suggest your ideas.</p>`}
+        <p className="muted">Already signed up on another device? Enter the same email or number to get your profile back.</p>
+        <label className="field">
+          <span className="field-label">Join code</span>
+          <input className="input input-code" type="text" maxLength="10" value=${code} placeholder="ABCDE"
+            onInput=${function (e) { setCode(e.target.value.toUpperCase()); }} />
+        </label>
+        <${ContactField} value=${contactRaw} error=${contactErr} onChange=${setContactRaw} />
+        <${PrivacyNote} />
+        <button className="btn btn-primary btn-block" disabled=${props.busy} onClick=${next}>
+          ${props.busy ? 'Signing in…' : 'Continue'}
+        </button>
+      </main>`;
+    }
     return html`<main className="card">
-      <span className="eyebrow">Join</span>
-      <h2 className="h2">Join the game</h2>
-      ${props.phase === 'play'
-        ? html`<p className="muted">The achievement list is already locked — you’ll get the list as it stands and start on zero points.</p>`
-        : html`<p className="muted">The group is still drafting achievements. Join in and add your ideas.</p>`}
-      <label className="field">
-        <span className="field-label">Join code</span>
-        <input className="input input-code" type="text" maxLength="10" value=${code} placeholder="ABCDE"
-          onInput=${function (e) { setCode(e.target.value.toUpperCase()); }} />
-      </label>
+      <span className="eyebrow">Join · Step 2 of 2</span>
+      <h2 className="h2">Create your profile</h2>
+      <p className="muted">This is how you’ll appear on the leaderboard and in the activity feed.</p>
       <${ProfileFields} name=${name} avatar=${avatar} imgStatus=${imgStatus}
         onName=${setName} onAvatar=${setAvatar} onImgStatus=${setImgStatus} />
-      <${PrivacyNote} />
-      <button className="btn btn-primary btn-block" disabled=${!canGo}
-        onClick=${function () { props.onJoin({ name: name, avatar: avatar, joinCode: code }); }}>
-        ${props.busy ? 'Joining…' : 'Join game'}
-      </button>
+      <div className="form-actions form-actions-split">
+        <button className="btn btn-secondary" onClick=${function () { setStep(1); }}>Back</button>
+        <button className="btn btn-primary" disabled=${!name.trim() || props.busy}
+          onClick=${function () { props.onJoin({ name: name, avatar: avatar, joinCode: code, contact: parseContact(contactRaw) }); }}>
+          ${props.busy ? 'Joining…' : 'Join game'}
+        </button>
+      </div>
     </main>`;
   }
 
@@ -1322,9 +1456,14 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     var _b = useState(props.me.avatar), avatar = _b[0], setAvatar = _b[1];
     var _c = useState(null), imgStatus = _c[0], setImgStatus = _c[1];
     return html`<div>
-      <h2 className="h2">My profile</h2>
+      <span className="eyebrow">My profile</span>
+      <h2 className="h2">Edit profile</h2>
       <${ProfileFields} idHint=${props.me.id} name=${name} avatar=${avatar} imgStatus=${imgStatus}
         onName=${setName} onAvatar=${setAvatar} onImgStatus=${setImgStatus} />
+      ${props.me.contact ? html`<div className="contact-line">
+        <span className="field-label">Signed up with</span>
+        <span className="contact-value">${props.me.contact.display}</span>
+      </div>` : null}
       <button className="btn btn-primary btn-block" disabled=${!name.trim() || props.busy}
         onClick=${function () { props.onSave({ name: name, avatar: avatar }); }}>
         ${props.busy ? 'Saving…' : 'Save changes'}
@@ -1475,7 +1614,6 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
 
   /* ---------------- play phase tabs ---------------- */
   function BoardTab(props) {
-    var medals = ['🥇', '🥈', '🥉'];
     return html`<main>
       <section className="card">
         <span className="eyebrow">Standings</span>
@@ -1487,7 +1625,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
             return html`<li key=${row.player.id}>
               <button className=${'board-row' + (isMe ? ' board-row-me' : '')}
                 onClick=${function () { props.onOpen(row.player.id); }}>
-                <span className="board-rank">${row.rank <= 3 && row.points > 0 ? medals[row.rank - 1] : row.rank}</span>
+                <span className=${'board-rank' + (row.rank <= 3 && row.points > 0 ? ' board-rank-top' : '')}>${row.rank}</span>
                 <${Avatar} player=${row.player} size=${44} />
                 <span className="board-name">
                   ${row.player.name}${isMe ? html`<span className="me-tag"> (you)</span>` : null}
@@ -1577,12 +1715,13 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     return html`<main>
       <section className="card">
         <div className="stats-head">
-          <${Avatar} player=${p} size=${64} />
-          <div>
-            <h2 className="h2">${p.name}${props.isMe ? html`<span className="me-tag"> (you)</span>` : null}</h2>
-            <div className="muted">Joined ${timeAgo(p.joinedAt)}</div>
+          <${Avatar} player=${p} size=${88} />
+          <h2 className="h2 stats-name">${p.name}${props.isMe ? html`<span className="me-tag"> (you)</span>` : null}</h2>
+          <div className="stats-meta">
+            <span>Joined ${timeAgo(p.joinedAt)}</span>
+            ${props.isMe && p.contact ? html`<span className="stats-meta-dot">·</span><span>${p.contact.display}</span>` : null}
           </div>
-          ${props.onEdit ? html`<button className="btn btn-secondary" onClick=${props.onEdit}>Edit profile</button>` : null}
+          ${props.onEdit ? html`<button className="btn btn-secondary btn-mini" onClick=${props.onEdit}>Edit profile</button>` : null}
         </div>
         <div className="summary-row">
           <div className="summary-stat"><div className="summary-num">${fmtPts(total)}</div><div className="summary-label">total points</div></div>
