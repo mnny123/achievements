@@ -39,7 +39,7 @@ const path = require('path');
   };
 
   async function newDevice(opts) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const ctx = await browser.newContext({ viewport: (opts && opts.viewport) || { width: 390, height: 844 } });
     await ctx.route('**://www.gstatic.com/**', r => r.abort()); // stub replaces the real SDK
     const page = await ctx.newPage();
     page.on('console', m => {
@@ -232,18 +232,52 @@ const path = require('path');
     await a.click('text=Yes, finalize');
     await b.waitForSelector('.log-row', { timeout: 6000 });  // draft list becomes the tickable checklist
   });
-  await step('B ticks; A board updates live to 10', async () => {
+  await step('B logs twice, unlogs once; A gets live toasts + totals', async () => {
     await b.click('.seg-btn:has-text("Achievements")');
     await b.click('.log-row:has-text("Read a book")');
-    await b.waitForSelector('.log-row-done');
+    await b.waitForSelector('.toast:has-text("logged 1×")');
+    // A is notified live that Ben logged something
+    await a.waitForSelector('.toast:has-text("Ben logged “Read a book”")', { timeout: 6000 });
     await a.waitForSelector('.board li:first-child .board-row:has-text("Ben")', { timeout: 6000 });
-    const first = await a.textContent('.board li:first-child .board-row');
-    if (!/10/.test(first)) throw new Error('got: ' + first);
+    await b.click('.log-row:has-text("Read a book")');
+    await b.waitForSelector('.check-count:has-text("2×")');
+    await a.waitForSelector('.board li:first-child .board-row:has-text("20")', { timeout: 6000 });
+    // feed shows the repeat count and the running total
+    await a.waitForSelector('.nth-tag:has-text("2×")');
+    await a.waitForSelector('text=now on 20 pts');
+    await b.click('.log-item:has-text("Read a book") .btn-minus');
+    await b.waitForSelector('.toast:has-text("one removed")');
+    await b.waitForSelector('.check-count:has-text("1×")');
+    await a.waitForSelector('.board li:first-child .board-row:has-text("10")', { timeout: 6000 });
   });
   await step('B: session survives reload', async () => {
     await b.reload();
     await b.waitForSelector('.seg-btn:has-text("Leaderboard")', { timeout: 8000 });
     if (!/Ben/.test(await b.textContent('.board-row-me'))) throw new Error('logged out after reload');
+  });
+
+  await step('REOPEN: creator unlocks list, logging pauses, points survive', async () => {
+    await a.click('.seg-btn:has-text("Achievements")');
+    await a.click('button:has-text("Reopen for editing…")');
+    await a.click('button:has-text("Yes, reopen")');
+    // B flips to the paused draft live
+    await b.waitForSelector('text=reopened the list for editing', { timeout: 6000 });
+    if (await b.locator('.log-item').count() > 0) throw new Error('log rows still tappable while paused');
+    await b.click('.seg-btn:has-text("Leaderboard")');
+    await b.waitForSelector('text=Logging is paused');
+    const row = await b.textContent('.board-row:has-text("Ben")');
+    if (!/10/.test(row)) throw new Error('points lost on reopen: ' + row);
+    // creator adds one more achievement and finalizes again
+    await a.fill('input[placeholder="e.g. Aced the spelling quiz"]', 'Bonus round');
+    await a.fill('input[type="number"]', '50');
+    await a.click('button:has-text("Add achievement")');
+    await a.waitForSelector('.ach-title:has-text("Bonus round")');
+    await a.click('text=Finalize…');
+    await a.click('text=Yes, finalize');
+    await b.waitForSelector('text=Logging is paused', { state: 'detached', timeout: 6000 });
+    await b.click('.seg-btn:has-text("Achievements")');
+    await b.waitForSelector('.log-row:has-text("Bonus round")');
+    await b.waitForSelector('.check-count:has-text("1×")'); // Read a book still 1×
   });
 
   await step('RACE: two players joining at once both appear', async () => {
@@ -280,6 +314,23 @@ const path = require('path');
     // both ticks must survive: Dana and Eli each on 10 on A's live board
     await a.waitForSelector('.board-row:has-text("Dana") >> text=10', { timeout: 6000 });
     await a.waitForSelector('.board-row:has-text("Eli") >> text=10', { timeout: 6000 });
+  });
+
+  await step('DESKTOP: game on the left, live feed on the right', async () => {
+    const wide = await newDevice({ viewport: { width: 1440, height: 900 } });
+    await wide.fill('input[type="email"]', 'ben@example.com');
+    await wide.fill('input[autocomplete="current-password"]', 'benpass1');
+    await wide.click('button[type="submit"]');
+    await wide.waitForSelector('.seg-btn:has-text("Leaderboard")', { timeout: 8000 });
+    if (!(await wide.locator('.side-feed').isVisible())) throw new Error('sidebar feed not visible on desktop');
+    await wide.waitForSelector('.side-feed >> text=Live feed');
+    await wide.waitForSelector('.side-feed >> text=now on');
+    if (await wide.locator('.feed-inline').isVisible()) throw new Error('inline feed still visible on desktop');
+    const mainBox = await wide.locator('.col-main').boundingBox();
+    const sideBox = await wide.locator('.side-feed').boundingBox();
+    if (!(mainBox.x < 200)) throw new Error('main content not shifted left: x=' + mainBox.x);
+    if (!(sideBox.x > mainBox.x + mainBox.width - 1)) throw new Error('feed not to the right of content');
+    await wide.close();
   });
 
   // Device C = a different browser entirely: log in as Ben, get Ben's profile back

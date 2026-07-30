@@ -136,29 +136,28 @@ const path = require('path');
     await a.waitForSelector('.summary-num:has-text("3")');
     await a.waitForSelector('.summary-num:has-text("42")');
     await a.click('text=Finalize…');
-    await a.waitForSelector('text=Lock the list forever');
+    await a.waitForSelector('text=Lock the list and start logging');
     await a.click('text=Yes, finalize');
     await a.waitForSelector('text=Leaderboard', { timeout: 8000 });
   });
 
-  await step('B: refresh -> play, tick two, untick one -> 25', async () => {
+  await step('B: refresh -> play, multi-log with counts -> 35', async () => {
     await b.click('.btn-refresh');
     await b.waitForSelector('.seg-btn:has-text("Leaderboard")', { timeout: 8000 });
     await b.click('.seg-btn:has-text("Achievements")');
     await b.waitForSelector('.log-row:has-text("Cleaned the whiteboard")');
     if (await b.locator('.log-row:has-text("Silly one")').count() > 0) throw new Error('declined item is listed');
     await b.click('.log-row:has-text("Helped a classmate")');
-    await b.waitForSelector('.toast:has-text("ticked — +25")');
+    await b.waitForSelector('.toast:has-text("logged 1×")');
     await b.click('.log-row:has-text("Read a book")');
-    await b.waitForSelector('.log-row-done:has-text("Read a book")');
-    if (await b.locator('.log-row-done').count() !== 2) throw new Error('expected 2 ticked rows');
-    await b.waitForSelector('text=You’ve ticked 2 of 3');
+    await b.waitForSelector('.log-item:has-text("Read a book") .check-count:has-text("1×")');
     await b.click('.log-row:has-text("Read a book")');
-    await b.waitForSelector('.toast:has-text("unticked — −10")');
-    if (await b.locator('.log-row-done').count() !== 1) throw new Error('expected 1 ticked row after untick');
+    await b.waitForSelector('.log-item:has-text("Read a book") .check-count:has-text("2×")');
+    await b.click('.log-item:has-text("Read a book") .btn-minus');
+    await b.waitForSelector('.toast:has-text("one removed")');
     await b.click('.seg-btn:has-text("Leaderboard")');
     const first = await b.textContent('.board li:first-child .board-row');
-    if (!/Ben/.test(first) || !/25/.test(first)) throw new Error('got: ' + first);
+    if (!/Ben/.test(first) || !/35/.test(first)) throw new Error('got: ' + first);
   });
   await step('B: edit profile via header avatar shows contact', async () => {
     await b.click('.topbar-avatar');
@@ -169,10 +168,10 @@ const path = require('path');
   });
   await step('A: board feed + stats sheet, no contact leak', async () => {
     await a.click('.btn-refresh');
-    await a.waitForSelector('text=ticked off \u201CHelped a classmate\u201D', { timeout: 8000 });
+    await a.waitForSelector('text=logged \u201CHelped a classmate\u201D', { timeout: 8000 });
     await a.click('.board-row:has-text("Ben")');
     await a.waitForSelector('.sheet >> text=total points');
-    await a.waitForSelector('.sheet >> text=Achievements ticked off');
+    await a.waitForSelector('.sheet >> text=Point history');
     const sheet = await a.textContent('.sheet');
     if (/ben@example\.com/.test(sheet)) throw new Error('contact leaked to other players');
     if (!/Helped a classmate/.test(sheet)) throw new Error('breakdown missing achievement');

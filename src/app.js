@@ -210,6 +210,16 @@
   }
   function fmtPts(n) { return n.toLocaleString(); }
 
+  /* system notification when the tab is in the background (needs the
+     permission granted via the bell in the live feed) */
+  function maybeNotify(body) {
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && document.hidden) {
+        new Notification('Achievement Leaderboard', { body: body });
+      }
+    } catch (e) { /* notifications are best-effort */ }
+  }
+
   /* accepts an email address or a phone number; returns null if it is neither */
   function parseContact(raw) {
     var v = (raw || '').trim();
@@ -473,6 +483,27 @@
       return function () { offs.forEach(function (off) { off(); }); };
     }, [authUser]);
 
+    /* live notifications: when someone ELSE's log arrives, say so */
+    var prevLogsRef = useRef(null);
+    useEffect(function () {
+      var prev = prevLogsRef.current;
+      prevLogsRef.current = logs;
+      if (prev === null || MODE !== 'firebase') return;
+      var myIdNow = (authUser && authUser.uid) || null;
+      var seen = {};
+      prev.forEach(function (lg) { seen[lg.id] = true; });
+      var added = logs.filter(function (lg) { return !seen[lg.id] && lg.playerId !== myIdNow; });
+      if (!added.length) return;
+      var last = added[added.length - 1];
+      var p = players[last.playerId];
+      var a = achById[last.achId];
+      if (!a) return;
+      var msg = ((p && p.name) || 'Someone') + ' logged \u201C' + a.title + '\u201D \u2014 +' + fmtPts(a.points) + ' pts' +
+        (added.length > 1 ? ' (and ' + (added.length - 1) + ' more)' : '');
+      showToast({ msg: msg });
+      maybeNotify(msg);
+    }, [logs]);
+
     /* with accounts, the Firebase uid *is* the player id */
     var myId = MODE === 'firebase' ? ((authUser && authUser.uid) || null) : localId;
     var me = myId && players[myId] ? players[myId] : null;
@@ -485,18 +516,19 @@
     }, [game]);
 
     var scores = useMemo(function () {
+      /* repeatable: every log adds its points again; done maps
+         player -> achievement -> times logged */
       var totals = {};
+      var counts = {};
       var done = {};
       logs.forEach(function (lg) {
         var a = achById[lg.achId];
         if (!a) return;
-        if (!done[lg.playerId]) done[lg.playerId] = {};
-        if (done[lg.playerId][lg.achId]) return; /* count each achievement once per player */
-        done[lg.playerId][lg.achId] = true;
         totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points;
+        counts[lg.playerId] = (counts[lg.playerId] || 0) + 1;
+        if (!done[lg.playerId]) done[lg.playerId] = {};
+        done[lg.playerId][lg.achId] = (done[lg.playerId][lg.achId] || 0) + 1;
       });
-      var counts = {};
-      Object.keys(done).forEach(function (pid) { counts[pid] = Object.keys(done[pid]).length; });
       return { totals: totals, counts: counts, done: done };
     }, [logs, achById]);
 
@@ -509,9 +541,10 @@
       var list = Object.keys(players).map(function (id) {
         return { player: players[id], points: scores.totals[id] || 0, logs: scores.counts[id] || 0 };
       });
-      /* before the list is final nobody can score, so show the roster
-         newest-first instead of pretending it is a ranking */
-      if (isDraft) {
+      /* a fresh draft with nothing logged is a roster, newest-first;
+         once anything has been logged, points always show (even while
+         the creator has reopened the list) */
+      if (isDraft && logs.length === 0) {
         list.forEach(function (r) { r.points = 0; r.logs = 0; });
         list.sort(function (a, b) { return (b.player.joinedAt || 0) - (a.player.joinedAt || 0); });
         list.forEach(function (r, i) { r.rank = i + 1; });
@@ -526,7 +559,7 @@
         row.rank = rank;
       });
       return list;
-    }, [players, scores, isDraft]);
+    }, [players, scores, isDraft, logs.length]);
 
     /* ------------ mutations ------------ */
     async function withBusy(fn) {
@@ -770,64 +803,113 @@
       });
     }
 
-    /* tick = mark done (+points), untick = take it back off.
-       Firebase mode touches only this player's own log records via
-       update(), so simultaneous ticks from other players are never lost. */
-    async function toggleAchievement(ach) {
+    /* creator can reopen the finalized list; logging pauses while it is
+       open and nothing already logged is touched */
+    async function reopenGame() {
       return withBusy(async function () {
-        var ticked = { current: false };
+        var res = await mutate(KEY_GAME, null, function (g) {
+          if (!g) return { __abort: 'The game vanished \u2014 tap Refresh.' };
+          if (g.creatorId !== myId) return { __abort: 'Only the game creator can reopen the list.' };
+          if (g.phase !== 'play') return { __abort: 'The list is already open.' };
+          g.phase = 'draft';
+          g.reopenedAt = Date.now();
+          return g;
+        });
+        if (!res.ok) { setErrorBanner(res.error); if (res.aborted) loadAll(true); return; }
+        setGame(res.value);
+        setTab('ach');
+        showToast({ msg: 'List reopened \u2014 logging is paused while you edit.' });
+      });
+    }
+
+    /* repeatable logging: every tap adds the points again; the minus
+       button removes the most recent of YOUR logs for that achievement.
+       Firebase mode touches only your own records via update(), so
+       simultaneous logs from other players are never lost. */
+    async function fbLogsNode() {
+      var node = FB.ref(fbPath(KEY_LOGS));
+      var snap = await node.once('value');
+      var v = snap.val();
+      if (typeof v === 'string') {
+        /* legacy single-blob log list: expand to one record per log */
+        var out = {};
+        normalizeLogs(v).forEach(function (lg) { out[lg.id || uid()] = JSON.stringify(lg); });
+        await node.set(out);
+        v = out;
+      }
+      return { node: node, v: v || {} };
+    }
+
+    function myCountFor(list, achId) {
+      return list.filter(function (lg) { return lg.playerId === myId && lg.achId === achId; }).length;
+    }
+
+    async function logAchievement(ach) {
+      return withBusy(async function () {
+        var entry = { id: uid(), playerId: myId, achId: ach.id, at: Date.now() };
+        var freshLogs;
         if (MODE === 'firebase') {
           try {
-            var node = FB.ref(fbPath(KEY_LOGS));
-            var snap = await node.once('value');
-            var v = snap.val();
-            if (typeof v === 'string') {
-              /* legacy single-blob log list: expand to one record per log */
-              var out = {};
-              normalizeLogs(v).forEach(function (lg) { out[lg.id || uid()] = JSON.stringify(lg); });
-              await node.set(out);
-              v = out;
-            }
+            var got = await fbLogsNode();
             var patch = {};
-            var mineKeys = [];
-            Object.keys(v || {}).forEach(function (k) {
-              var lg = v[k];
-              if (typeof lg === 'string') { try { lg = JSON.parse(lg); } catch (e) { lg = null; } }
-              if (lg && lg.playerId === myId && lg.achId === ach.id) mineKeys.push(k);
-            });
-            if (mineKeys.length) {
-              mineKeys.forEach(function (k) { patch[k] = null; });
-            } else {
-              ticked.current = true;
-              var entry = { id: uid(), playerId: myId, achId: ach.id, at: Date.now() };
-              patch[entry.id] = JSON.stringify(entry);
-            }
-            await node.update(patch);
+            patch[entry.id] = JSON.stringify(entry);
+            await got.node.update(patch);
             var after = await storeGet(KEY_LOGS);
-            if (after.ok) setLogs((after.value && after.value.logs) || []);
+            freshLogs = (after.ok && after.value && after.value.logs) || null;
           } catch (err) {
-            setErrorBanner('Couldn’t save that: ' + String((err && err.message) || err));
+            setErrorBanner('Couldn\u2019t save that: ' + String((err && err.message) || err));
+            return;
+          }
+        } else {
+          var res = await mutate(KEY_LOGS, { logs: [] }, function (d) { d.logs.push(entry); return d; });
+          if (!res.ok) { setErrorBanner('Couldn\u2019t save that: ' + res.error); return; }
+          freshLogs = res.value.logs;
+        }
+        if (freshLogs) setLogs(freshLogs);
+        var n = freshLogs ? myCountFor(freshLogs, ach.id) : 1;
+        showToast({ msg: '\u201C' + ach.title + '\u201D logged ' + n + '\u00D7 \u2014 +' + fmtPts(ach.points) + ' pts' });
+      });
+    }
+
+    async function unlogAchievement(ach) {
+      return withBusy(async function () {
+        var freshLogs = null;
+        if (MODE === 'firebase') {
+          try {
+            var got = await fbLogsNode();
+            var mine = [];
+            Object.keys(got.v).forEach(function (k) {
+              var lg = got.v[k];
+              if (typeof lg === 'string') { try { lg = JSON.parse(lg); } catch (e) { lg = null; } }
+              if (lg && lg.playerId === myId && lg.achId === ach.id) mine.push({ key: k, at: lg.at || 0 });
+            });
+            if (!mine.length) return;
+            mine.sort(function (x, y) { return x.at - y.at; });
+            var patch = {};
+            patch[mine[mine.length - 1].key] = null;
+            await got.node.update(patch);
+            var after = await storeGet(KEY_LOGS);
+            freshLogs = (after.ok && after.value && after.value.logs) || null;
+          } catch (err) {
+            setErrorBanner('Couldn\u2019t save that: ' + String((err && err.message) || err));
             return;
           }
         } else {
           var res = await mutate(KEY_LOGS, { logs: [] }, function (d) {
-            var mine = function (lg) { return lg.playerId === myId && lg.achId === ach.id; };
-            if (d.logs.some(mine)) {
-              d.logs = d.logs.filter(function (lg) { return !mine(lg); });
-            } else {
-              ticked.current = true;
-              d.logs.push({ id: uid(), playerId: myId, achId: ach.id, at: Date.now() });
+            var idx = -1;
+            for (var i = d.logs.length - 1; i >= 0; i--) {
+              if (d.logs[i].playerId === myId && d.logs[i].achId === ach.id) { idx = i; break; }
             }
+            if (idx < 0) return { __abort: 'Nothing to remove.' };
+            d.logs.splice(idx, 1);
             return d;
           });
-          if (!res.ok) { setErrorBanner('Couldn’t save that: ' + res.error); return; }
-          setLogs(res.value.logs);
+          if (!res.ok) { if (!res.aborted) setErrorBanner(res.error); return; }
+          freshLogs = res.value.logs;
         }
-        showToast({
-          msg: ticked.current
-            ? '“' + ach.title + '” ticked — +' + fmtPts(ach.points) + ' pts'
-            : '“' + ach.title + '” unticked — −' + fmtPts(ach.points) + ' pts'
-        });
+        if (freshLogs) setLogs(freshLogs);
+        var n = freshLogs ? myCountFor(freshLogs, ach.id) : 0;
+        showToast({ msg: '\u201C' + ach.title + '\u201D \u2014 one removed, \u2212' + fmtPts(ach.points) + ' pts' + (n > 0 ? ' (now ' + n + '\u00D7)' : '') });
       });
     }
 
@@ -941,16 +1023,24 @@
           ? html`<${DraftScreen}
               game=${game} players=${players} me=${me} isCreator=${isCreator} busy=${busy}
               onSave=${addOrEditAchievement} onDelete=${deleteAchievement}
-              onApprove=${approveAchievement} onFinalize=${finalizeGame} />`
+              onApprove=${approveAchievement} onFinalize=${finalizeGame} hasLogs=${logs.length > 0} />`
           : html`<${AchievementsTab} game=${game} busy=${busy} myDone=${scores.done[myId] || {}}
-              myPoints=${scores.totals[myId] || 0} onToggle=${toggleAchievement} />`)
+              myPoints=${scores.totals[myId] || 0} onLog=${logAchievement} onUnlog=${unlogAchievement}
+              isCreator=${isCreator} onReopen=${reopenGame} />`)
         : html`<${BoardTab} ranking=${ranking} myId=${myId} game=${game} onOpen=${setStatsFor}
-            logs=${logs} players=${players} achById=${achById} isDraft=${isDraft} />`}
+            logs=${logs} players=${players} achById=${achById}
+            mode=${!isDraft ? 'live' : (logs.length === 0 ? 'roster' : 'paused')} />`}
     <//>`;
 
-    return html`<div className="shell">
+    var showSide = game.phase === 'play' || logs.length > 0;
+    return html`<div className=${'shell' + (showSide ? ' shell-wide' : '')}>
       ${headerBar}${banners}
-      ${body}
+      <div className="columns">
+        <div className="col-main">${body}</div>
+        ${showSide ? html`<aside className="side-feed">
+          <${FeedPanel} logs=${logs} players=${players} achById=${achById} />
+        </aside>` : null}
+      </div>
       ${statsFor ? html`<${Sheet} onClose=${function () { setStatsFor(null); }}>
         <${StatsView} player=${players[statsFor]} logs=${logs} achById=${achById} scores=${scores} isMe=${statsFor === myId} />
       <//>` : null}
@@ -976,10 +1066,10 @@
   /* title page: the rules of the money game, shown before anything else */
   var RULES = [
     { title: 'Buy in — $5 each', body: 'Every player puts in $5 before the game starts. Same amount for everyone, paid once.' },
-    { title: 'Earn points', body: 'Tick off achievements from the agreed list. Each one is worth the points shown beside it.' },
+    { title: 'Earn points', body: 'Log achievements from the agreed list \u2014 repeats count, so every time you do one, its points are added again.' },
     { title: 'Winner takes the pot', body: 'Whoever finishes with the most points wins every dollar that was put in — $5 times the number of players.' },
     { title: 'Losing costs you nothing extra', body: 'There is no punishment for losing and no further payments. Everyone who doesn’t win simply doesn’t collect.' },
-    { title: 'It runs on honour', body: 'Nobody approves your ticks, so only tick off what you have genuinely done.' }
+    { title: 'It runs on honour', body: 'Nobody approves your logs, so only log what you have genuinely done.' }
   ];
 
   function TitlePage(props) {
@@ -1328,8 +1418,10 @@
 
     return html`<main>
       ${props.isCreator
-        ? html`<div className="status-line status-creator">You’re the game creator. Approve or decline suggestions, and when the list is ready, finalize it below — that locks it for good and starts the game.</div>`
-        : html`<div className="status-line">The achievement list is still open — ${creatorName} hasn’t finalized it yet. Suggest your ideas; ${creatorName} gives each one the OK before it joins the list.</div>`}
+        ? html`<div className="status-line status-creator">You’re the game creator. Approve or decline suggestions, and when the list is ready, finalize it below to start (or resume) logging. You can reopen the list again later.</div>`
+        : html`<div className="status-line">${props.hasLogs
+            ? creatorName + ' has reopened the list for editing — logging is paused and nobody’s points are lost. Suggest ideas; ' + creatorName + ' gives each one the OK.'
+            : 'The achievement list is still open — ' + creatorName + ' hasn’t finalized it yet. Suggest your ideas; ' + creatorName + ' gives each one the OK before it joins the list.'}</div>`}
 
       ${pending.length ? html`<section className="card">
         <span className="eyebrow">${props.isCreator ? 'Needs your OK' : 'Waiting for the OK'}</span>
@@ -1362,12 +1454,12 @@
           <div className="summary-stat"><div className="summary-num">${approved.length}</div><div className="summary-label">achievements</div></div>
           <div className="summary-stat"><div className="summary-num">${fmtPts(totalPts)}</div><div className="summary-label">points per full sweep</div></div>
         </div>
-        <p className="muted">Review the full list above. Finalizing is <strong>permanent</strong>: nobody — including you —
-          can add, edit or remove achievements or change point values afterwards.</p>
+        <p className="muted">Review the full list above. Finalizing locks the list and ${props.hasLogs ? 'resumes' : 'starts'} logging.
+          You can <strong>reopen it for editing at any time</strong> — logging pauses while it’s open and nothing already logged is lost.</p>
         ${pending.length ? html`<p className="muted"><strong>${pending.length}</strong> suggestion${pending.length === 1 ? ' is' : 's are'} still waiting for your OK — finalizing now discards ${pending.length === 1 ? 'it' : 'them'}.</p>` : null}
         ${confirmingFinalize
           ? html`<div className="confirm-box">
-              <p><strong>Lock the list forever and start the game?</strong>${pending.length ? ' Unapproved suggestions will be discarded.' : ''}</p>
+              <p><strong>Lock the list and ${props.hasLogs ? 'resume' : 'start'} logging?</strong>${pending.length ? ' Unapproved suggestions will be discarded.' : ''}</p>
               <div className="form-actions">
                 <button className="btn btn-secondary" onClick=${function () { setConfirming(false); }}>Cancel</button>
                 <button className="btn btn-primary" disabled=${props.busy} onClick=${props.onFinalize}>
@@ -1382,19 +1474,78 @@
   }
 
   /* ---------------- play phase tabs ---------------- */
+  /* one entry per log, annotated with the player's running total and
+     how many times they've logged that achievement so far */
+  function FeedList(props) {
+    var totals = {};
+    var achCounts = {};
+    var entries = [];
+    props.logs.forEach(function (lg) {
+      var a = props.achById[lg.achId];
+      if (!a) return;
+      totals[lg.playerId] = (totals[lg.playerId] || 0) + a.points;
+      if (!achCounts[lg.playerId]) achCounts[lg.playerId] = {};
+      achCounts[lg.playerId][lg.achId] = (achCounts[lg.playerId][lg.achId] || 0) + 1;
+      entries.push({ lg: lg, a: a, nth: achCounts[lg.playerId][lg.achId], total: totals[lg.playerId] });
+    });
+    var recent = entries.slice(-(props.limit || 25)).reverse();
+    if (!recent.length) return html`<p className="muted">Nothing logged yet \u2014 be the first on the board.</p>`;
+    return html`<ul className="feed">
+      ${recent.map(function (e) {
+        var p = props.players[e.lg.playerId];
+        return html`<li key=${e.lg.id} className="feed-row">
+          <${Avatar} player=${p} size=${36} />
+          <div className="feed-main">
+            <div><strong>${(p && p.name) || 'A former player'}</strong> logged \u201C${e.a.title}\u201D${e.nth > 1 ? html`<span className="nth-tag">${e.nth}\u00D7</span>` : null}</div>
+            <div className="feed-time">${timeAgo(e.lg.at)} \u00B7 now on ${fmtPts(e.total)} pts</div>
+          </div>
+          <${Pts} value=${e.a.points} plus=${true} />
+        </li>`;
+      })}
+    </ul>`;
+  }
+
+  function NotifyButton() {
+    var supported = typeof Notification !== 'undefined';
+    var _a = useState(supported ? Notification.permission : 'unsupported');
+    var perm = _a[0], setPerm = _a[1];
+    if (!supported || perm === 'denied') return null;
+    if (perm === 'granted') return html`<span className="hint notify-on">Notifications on</span>`;
+    return html`<button className="btn btn-mini btn-secondary"
+      onClick=${function () { Notification.requestPermission().then(setPerm); }}>
+      \uD83D\uDD14 Notify me
+    </button>`;
+  }
+
+  function FeedPanel(props) {
+    return html`<section className="card">
+      <div className="side-head">
+        <div>
+          <span className="eyebrow">Live feed</span>
+          <h2 className="h2">Activity</h2>
+        </div>
+        <${NotifyButton} />
+      </div>
+      <${FeedList} logs=${props.logs} players=${props.players} achById=${props.achById} limit=${40} />
+    </section>`;
+  }
+
   function BoardTab(props) {
-    var recent = props.logs.slice(-25).reverse();
-    var isDraft = props.isDraft;
+    var mode = props.mode || 'live';
+    var isRoster = mode === 'roster';
     return html`<main>
       <section className="card">
-        <span className="eyebrow">${isDraft ? 'Who’s playing' : 'Standings'}</span>
+        <span className="eyebrow">${isRoster ? 'Who’s playing' : 'Standings'}</span>
         <h2 className="h2">
-          ${isDraft ? 'Players' : 'Leaderboard'}
+          ${isRoster ? 'Players' : 'Leaderboard'}
           <span className="count-chip">${props.ranking.length}</span>
         </h2>
-        ${isDraft
+        ${isRoster
           ? html`<p className="muted">Scoring starts when the achievement list is finalized, so everyone is on zero.
               Newest players are at the top.</p>`
+          : null}
+        ${mode === 'paused'
+          ? html`<p className="muted">Logging is paused while the creator edits the achievement list \u2014 points already logged are safe.</p>`
           : null}
         ${props.ranking.length === 0 ? html`<p className="muted">Nobody has joined yet.</p>` : null}
         <ol className="board">
@@ -1403,7 +1554,7 @@
             return html`<li key=${row.player.id}>
               <button className=${'board-row' + (isMe ? ' board-row-me' : '')}
                 onClick=${function () { props.onOpen(row.player.id); }}>
-                ${isDraft
+                ${isRoster
                   ? null
                   : html`<span className=${'board-rank' + (row.rank <= 3 && row.points > 0 ? ' board-rank-top' : '')}>${row.rank}</span>`}
                 <${Avatar} player=${row.player} size=${48} />
@@ -1412,64 +1563,72 @@
                     <span className="board-name-text">${row.player.name}${isMe ? html`<span className="me-tag"> (you)</span>` : null}</span>
                     ${props.game.creatorId === row.player.id ? html`<span className="creator-tag">creator</span>` : null}
                   </span>
-                  ${isDraft ? html`<span className="board-sub">joined ${timeAgo(row.player.joinedAt)}</span>` : null}
+                  ${isRoster ? html`<span className="board-sub">joined ${timeAgo(row.player.joinedAt)}</span>` : null}
                 </span>
-                <${Pts} value=${row.points} big=${!isDraft} />
+                <${Pts} value=${row.points} big=${!isRoster} />
               </button>
             </li>`;
           })}
         </ol>
-        <p className="hint">Tap a player to see their profile${isDraft ? '.' : ' and every achievement they’ve ticked off.'}</p>
+        <p className="hint">Tap a player to see their profile${isRoster ? '.' : ' and their full point history.'}</p>
       </section>
-      ${isDraft ? null : html`<section className="card">
+      ${isRoster ? null : html`<section className="card feed-inline">
         <span className="eyebrow">Recent activity</span>
-        ${recent.length === 0 ? html`<p className="muted" style=${{ marginTop: '8px' }}>Nothing ticked off yet — be the first on the board.</p>` : null}
-        <ul className="feed" style=${{ marginTop: '10px' }}>
-          ${recent.map(function (lg) {
-            var p = props.players[lg.playerId];
-            var a = props.achById[lg.achId];
-            return html`<li key=${lg.id} className="feed-row">
-              <${Avatar} player=${p} size=${36} />
-              <div className="feed-main">
-                <div><strong>${(p && p.name) || 'A former player'}</strong> ticked off “${(a && a.title) || 'an achievement'}”</div>
-                <div className="feed-time">${timeAgo(lg.at)}</div>
-              </div>
-              ${a ? html`<${Pts} value=${a.points} plus=${true} />` : null}
-            </li>`;
-          })}
-        </ul>
+        <div style=${{ marginTop: '10px' }}>
+          <${FeedList} logs=${props.logs} players=${props.players} achById=${props.achById} limit=${25} />
+        </div>
       </section>`}
     </main>`;
   }
 
   function AchievementsTab(props) {
-    var total = props.game.achievements.length;
-    var doneCount = props.game.achievements.filter(function (a) { return props.myDone[a.id]; }).length;
+    var totalLogs = 0;
+    Object.keys(props.myDone).forEach(function (k) { totalLogs += props.myDone[k]; });
+    var _a = useState(false), confirmingReopen = _a[0], setConfirmingReopen = _a[1];
     return html`<main>
       <section className="card">
-        <span className="eyebrow">Honour system — tick what you’ve done</span>
+        <span className="eyebrow">Honour system \u2014 tap to log it, repeats welcome</span>
         <h2 className="h2">Achievements</h2>
-        <p className="muted">You’ve ticked ${doneCount} of ${total} · ${fmtPts(props.myPoints)} pts. Tap to tick, tap again to untick.</p>
+        <p className="muted">You\u2019ve logged ${totalLogs} ${totalLogs === 1 ? 'time' : 'times'} \u00B7 ${fmtPts(props.myPoints)} pts.
+          Tap an achievement every time you do it \u2014 each log adds its points again. The \u2018\u2212\u2019 takes one back off.</p>
         <ul className="ach-list">
           ${props.game.achievements.map(function (a) {
-            var done = !!props.myDone[a.id];
-            return html`<li key=${a.id}>
-              <button className=${'log-row' + (done ? ' log-row-done' : '')} disabled=${props.busy}
-                role="checkbox" aria-checked=${done}
-                onClick=${function () { props.onToggle(a); }}>
-                <span className=${'check' + (done ? ' check-on' : '')} aria-hidden="true">
-                  ${done ? html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : null}
+            var count = props.myDone[a.id] || 0;
+            return html`<li key=${a.id} className="log-item">
+              <button className=${'log-row' + (count > 0 ? ' log-row-done' : '')} disabled=${props.busy}
+                onClick=${function () { props.onLog(a); }} aria-label=${'Log \u201C' + a.title + '\u201D again'}>
+                <span className=${'check' + (count > 0 ? ' check-on' : '')} aria-hidden="true">
+                  ${count > 0 ? html`<span className="check-count">${count}\u00D7</span>` : null}
                 </span>
                 <div className="ach-main">
                   <div className="ach-title">${a.title}</div>
                   ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
                 </div>
-                <${Pts} value=${a.points} big=${done} />
+                <${Pts} value=${a.points} plus=${true} big=${count > 0} />
               </button>
+              ${count > 0 ? html`<button className="btn-minus" disabled=${props.busy}
+                onClick=${function () { props.onUnlog(a); }} aria-label=${'Remove one log of \u201C' + a.title + '\u201D'}>\u2212</button>` : null}
             </li>`;
           })}
         </ul>
       </section>
+      ${props.isCreator ? html`<section className="card card-finalize">
+        <span className="eyebrow">Creator only</span>
+        <h2 className="h2">Change the list</h2>
+        <p className="muted">Reopening pauses everyone\u2019s logging while you edit \u2014 nothing already logged is erased,
+          and finalizing again resumes the game.</p>
+        ${confirmingReopen
+          ? html`<div className="confirm-box">
+              <p><strong>Reopen the list and pause logging?</strong></p>
+              <div className="form-actions">
+                <button className="btn btn-secondary" onClick=${function () { setConfirmingReopen(false); }}>Cancel</button>
+                <button className="btn btn-primary" disabled=${props.busy} onClick=${props.onReopen}>
+                  ${props.busy ? 'Reopening\u2026' : 'Yes, reopen'}
+                </button>
+              </div>
+            </div>`
+          : html`<button className="btn btn-block" onClick=${function () { setConfirmingReopen(true); }}>Reopen for editing\u2026</button>`}
+      </section>` : null}
     </main>`;
   }
 
@@ -1479,15 +1638,15 @@
     if (!p) return html`<p className="muted">This player is no longer in the game.</p>`;
     var when = {};
     props.logs.forEach(function (lg) {
-      if (lg.playerId === p.id && !when[lg.achId]) when[lg.achId] = lg.at;
+      if (lg.playerId === p.id) when[lg.achId] = lg.at; /* latest log wins */
     });
-    var doneSet = props.scores.done[p.id] || {};
-    var rows = Object.keys(doneSet).map(function (achId) {
+    var doneCounts = props.scores.done[p.id] || {};
+    var rows = Object.keys(doneCounts).map(function (achId) {
       var a = props.achById[achId];
-      return a ? { title: a.title, pts: a.points, at: when[achId] } : null;
+      return a ? { title: a.title, count: doneCounts[achId], pts: a.points * doneCounts[achId], at: when[achId] } : null;
     }).filter(Boolean).sort(function (x, y) { return (y.at || 0) - (x.at || 0); });
     var total = props.scores.totals[p.id] || 0;
-    var totalAch = Object.keys(props.achById).length;
+    var totalLogs = props.scores.counts[p.id] || 0;
     return html`<main>
       <section className="card">
         <div className="stats-head">
@@ -1501,15 +1660,15 @@
         </div>
         <div className="summary-row">
           <div className="summary-stat"><div className="summary-num">${fmtPts(total)}</div><div className="summary-label">total points</div></div>
-          <div className="summary-stat"><div className="summary-num">${rows.length}<span className="summary-of">/${totalAch}</span></div><div className="summary-label">ticked off</div></div>
+          <div className="summary-stat"><div className="summary-num">${totalLogs}</div><div className="summary-label">logs</div></div>
         </div>
-        <h3 className="h3">Achievements ticked off</h3>
-        ${rows.length === 0 ? html`<p className="muted">Nothing ticked off yet.</p>` : null}
+        <h3 className="h3">Point history</h3>
+        ${rows.length === 0 ? html`<p className="muted">Nothing logged yet.</p>` : null}
         <ul className="breakdown">
           ${rows.map(function (r) {
             return html`<li key=${r.title} className="breakdown-row">
               <span className="breakdown-title">${r.title}</span>
-              ${r.at ? html`<span className="breakdown-count">${timeAgo(r.at)}</span>` : null}
+              <span className="breakdown-count">${r.count}\u00D7</span>
               <${Pts} value=${r.pts} />
             </li>`;
           })}

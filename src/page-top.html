@@ -276,6 +276,30 @@
   .feed-row { display: flex; align-items: center; gap: 12px; }
   .feed-main { flex: 1; min-width: 0; font-size: 14.5px; }
   .feed-time { font-size: 12.5px; color: var(--muted); }
+  .nth-tag {
+    display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700;
+    background: var(--chip-bg); color: var(--chip-ink); border-radius: 6px; padding: 1px 6px;
+  }
+  .side-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .side-head .h2 { margin-bottom: 6px; }
+  .notify-on { margin: 0; white-space: nowrap; }
+
+  /* ---------- two-column desktop layout: game left, live feed right ---------- */
+  .columns { display: block; }
+  .side-feed { display: none; }
+  @media (min-width: 1000px) {
+    .shell { margin: 0 auto 0 max(20px, 4vw); }
+    .shell-wide { max-width: 1060px; }
+    .shell-wide .columns {
+      display: grid; grid-template-columns: minmax(0, 560px) 350px;
+      gap: 28px; align-items: start;
+    }
+    .shell-wide .side-feed {
+      display: block; position: sticky; top: 84px;
+      max-height: calc(100vh - 104px); overflow-y: auto;
+    }
+    .shell-wide .feed-inline { display: none; }
+  }
 
   /* ---------- top tabs ---------- */
   .segmented {
@@ -291,10 +315,20 @@
 
   /* ---------- checklist ---------- */
   .check {
-    width: 26px; height: 26px; border: 2px solid var(--line-strong); border-radius: 8px;
+    min-width: 27px; height: 27px; padding: 0 4px;
+    border: 2px solid var(--line-strong); border-radius: 8px;
     display: grid; place-items: center; flex-shrink: 0; background: var(--surface);
     transition: background 0.12s ease, border-color 0.12s ease;
   }
+  .check-count { font-size: 12.5px; font-weight: 700; letter-spacing: -0.02em; }
+  .log-item { display: flex; gap: 8px; align-items: stretch; }
+  .log-item .log-row { flex: 1; min-width: 0; }
+  .btn-minus {
+    width: 50px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--surface); font-size: 24px; color: var(--muted);
+    cursor: pointer; flex-shrink: 0;
+  }
+  .btn-minus:active { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
   .check-on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
   .log-row-done { background: var(--surface-2); }
   .summary-of { font-size: 0.6em; font-weight: 600; color: var(--muted); }
