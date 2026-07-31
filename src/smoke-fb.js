@@ -303,16 +303,18 @@ const path = require('path');
     // Bonus round is adjustable, so tapping opens the adjustment panel
     await b.click('.log-item:has-text("Bonus round") .step-plus');
     await b.waitForSelector('.adj-panel');
-    await b.fill('.adj-panel input[type="number"]', '5000');
-    await b.click('.adj-panel .btn-primary');
-    await b.waitForSelector('.toast:has-text("incl. +5,000 adjustment")');
-    // A is told live, including the adjustment
-    await a.waitForSelector('.toast:has-text("incl. +5,000 adjustment")', { timeout: 6000 });
+    // fixed choice: with the +1,000 school bonus or without — no custom number
+    if (await b.locator('.adj-panel input').count() > 0) throw new Error('bonus should not be a custom number');
+    await b.waitForSelector('.adj-panel >> text=someone from school');
+    await b.click('.adj-panel .btn-primary');   // "With bonus +1,050"
+    await b.waitForSelector('.toast:has-text("incl. +1,000 adjustment")');
+    // A is told live, including the bonus
+    await a.waitForSelector('.toast:has-text("incl. +1,000 adjustment")', { timeout: 6000 });
     await a.click('.seg-btn:has-text("Leaderboard")');
-    await a.waitForSelector('.board-row:has-text("Ben") >> text=5,060', { timeout: 6000 });
-    // the feed entry carries the adjustment tag and the running total
-    await a.waitForSelector('.adj-tag:has-text("+5,000 adj")');
-    await a.waitForSelector('text=now on 5,060 pts');
+    await a.waitForSelector('.board-row:has-text("Ben") >> text=1,060', { timeout: 6000 });
+    // the feed entry carries the bonus tag and the running total
+    await a.waitForSelector('.adj-tag:has-text("+1,000 adj")');
+    await a.waitForSelector('text=now on 1,060 pts');
   });
 
   await step('RACE: two players joining at once both appear', async () => {
@@ -407,7 +409,7 @@ const path = require('path');
     if (await c.locator('text=Join the game').count() > 0) throw new Error('asked to re-join');
     const meRow = await c.textContent('.board-row-me');
     if (!/Ben/.test(meRow)) throw new Error('not Ben: ' + meRow);
-    if (!/5,060/.test(meRow)) throw new Error('points did not follow the account: ' + meRow);
+    if (!/1,060/.test(meRow)) throw new Error('points did not follow the account: ' + meRow);
   });
   await step('C: log out returns to the login screen', async () => {
     await c.click('.topbar-avatar');

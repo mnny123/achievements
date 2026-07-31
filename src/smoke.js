@@ -163,8 +163,7 @@ const path = require('path');
     if (await b.locator('.log-row:has-text("Silly one")').count() > 0) throw new Error('declined item is listed');
     await b.click('.log-item:has-text("Helped a classmate") .step-plus');
     await b.waitForSelector('.adj-panel');
-    await b.fill('.adj-panel input[type="number"]', '5');
-    await b.click('.adj-panel .btn-primary');
+    await b.click('.adj-panel button:has-text("Log +25")');   // without the school bonus
     await b.waitForSelector('.toast:has-text("logged 1×")');
     await b.click('.log-item:has-text("Read a book") .step-plus');
     await b.waitForSelector('.log-item:has-text("Read a book") .step-count:has-text("1")');
@@ -174,7 +173,7 @@ const path = require('path');
     await b.waitForSelector('.toast:has-text("one removed")');
     await b.click('.seg-btn:has-text("Leaderboard")');
     const first = await b.textContent('.board li:first-child .board-row');
-    if (!/Ben/.test(first) || !/40/.test(first)) throw new Error('got: ' + first);
+    if (!/Ben/.test(first) || !/35/.test(first)) throw new Error('got: ' + first);
   });
   await step('B: edit profile via header avatar shows contact', async () => {
     await b.click('.topbar-avatar');
@@ -186,7 +185,7 @@ const path = require('path');
   await step('A: board feed + stats sheet, no contact leak', async () => {
     await a.click('.btn-refresh');
     await a.waitForSelector('text=logged \u201CHelped a classmate\u201D', { timeout: 8000 });
-    await a.waitForSelector('.adj-tag:has-text("+5 adj")');
+
     await a.click('.board-row:has-text("Ben")');
     await a.waitForSelector('.sheet >> text=total points');
     await a.waitForSelector('.sheet >> text=Point history');

@@ -1118,6 +1118,9 @@
     { title: 'It runs on honour', body: 'Nobody approves your logs, so only log what you have genuinely done.' }
   ];
 
+  /* the one allowed adjustment: the school bonus from the rules */
+  var SCHOOL_BONUS = 1000;
+
   function TitlePage(props) {
     return html`<main className="title-page">
       <div className="title-hero">
@@ -1404,8 +1407,8 @@
       <label className="field field-check">
         <input type="checkbox" checked=${adjustable}
           onChange=${function (e) { setAdjustable(e.target.checked); }} />
-        <span><strong>Allow adjustment points.</strong> Whoever logs this can add extra points on top
-          (or take some off) to match how hard their circumstances were.</span>
+        <span><strong>Allow the school bonus.</strong> Whoever logs this can add 1,000 bonus points
+          when they did it with someone from school.</span>
       </label>
       <div className="form-actions">
         ${props.onCancel ? html`<button className="btn btn-secondary" onClick=${props.onCancel}>Cancel</button>` : null}
@@ -1456,7 +1459,7 @@
         </div>
         <div className="ach-side">
           <${Pts} value=${a.points} />
-          ${a.adjustable ? html`<span className="adjustable-tag">adjustable</span>` : null}
+          ${a.adjustable ? html`<span className="adjustable-tag">school bonus</span>` : null}
           <div className="ach-actions">
             ${isPending && props.isCreator ? html`<button className="btn btn-mini btn-approve" disabled=${props.busy}
               onClick=${function () { props.onApprove(a.id); }}>Approve</button>` : null}
@@ -1661,7 +1664,6 @@
     Object.keys(props.myDone).forEach(function (k) { totalLogs += props.myDone[k]; });
     var _a = useState(false), confirmingReopen = _a[0], setConfirmingReopen = _a[1];
     var _b = useState(null), adjustingId = _b[0], setAdjustingId = _b[1];
-    var _c = useState(''), adjRaw = _c[0], setAdjRaw = _c[1];
     return html`<main>
       <section className="card">
         <span className="eyebrow">Honour system \u2014 tap to log it, repeats welcome</span>
@@ -1672,13 +1674,12 @@
           ${props.game.achievements.map(function (a) {
             var count = props.myDone[a.id] || 0;
             var adjusting = adjustingId === a.id;
-            var adjNum = parseInt(adjRaw, 10) || 0;
             return html`<li key=${a.id} className="log-item">
               <div className=${'log-row' + (count > 0 ? ' log-row-done' : '')}>
                 <div className="ach-main">
                   <div className="ach-title">${a.title}</div>
                   ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
-                  ${a.adjustable ? html`<span className="adjustable-tag">adjustable</span>` : null}
+                  ${a.adjustable ? html`<span className="adjustable-tag">school bonus</span>` : null}
                 </div>
                 <${Pts} value=${a.points} plus=${true} big=${count > 0} />
                 <div className="stepper" role="group" aria-label=${'Times you\u2019ve done \u201C' + a.title + '\u201D'}>
@@ -1687,21 +1688,22 @@
                   <span className="step-count">${count}</span>
                   <button className="step-btn step-plus" disabled=${props.busy}
                     onClick=${function () {
-                      if (a.adjustable) { setAdjustingId(adjusting ? null : a.id); setAdjRaw(''); }
+                      if (a.adjustable) { setAdjustingId(adjusting ? null : a.id); }
                       else props.onLog(a, 0);
                     }} aria-label=${'Log \u201C' + a.title + '\u201D one more time'}>+</button>
                 </div>
               </div>
               ${adjusting ? html`<div className="adj-panel">
-                <span className="field-label">Adjustment points \u2014 base is ${fmtPts(a.points)}. Add extra for harder circumstances
-                  (or a negative number for easier ones).</span>
+                <span className="field-label">Add 1,000 bonus points for any act done with someone from school.</span>
                 <div className="adj-row">
-                  <input className="input" type="number" inputMode="numeric" value=${adjRaw} placeholder="0"
-                    onInput=${function (e) { setAdjRaw(e.target.value); }} />
-                  <button className="btn btn-secondary" onClick=${function () { setAdjustingId(null); setAdjRaw(''); }}>Cancel</button>
-                  <button className="btn btn-primary" disabled=${props.busy || a.points + adjNum < 0}
-                    onClick=${function () { props.onLog(a, adjNum); setAdjustingId(null); setAdjRaw(''); }}>
-                    Log +${fmtPts(a.points + adjNum)}
+                  <button className="btn btn-secondary" onClick=${function () { setAdjustingId(null); }}>Cancel</button>
+                  <button className="btn btn-secondary" disabled=${props.busy}
+                    onClick=${function () { props.onLog(a, 0); setAdjustingId(null); }}>
+                    Log +${fmtPts(a.points)}
+                  </button>
+                  <button className="btn btn-primary" disabled=${props.busy}
+                    onClick=${function () { props.onLog(a, SCHOOL_BONUS); setAdjustingId(null); }}>
+                    With bonus +${fmtPts(a.points + SCHOOL_BONUS)}
                   </button>
                 </div>
               </div>` : null}
