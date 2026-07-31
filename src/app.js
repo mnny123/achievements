@@ -1667,30 +1667,31 @@
         <span className="eyebrow">Honour system \u2014 tap to log it, repeats welcome</span>
         <h2 className="h2">Achievements</h2>
         <p className="muted">You\u2019ve logged ${totalLogs} ${totalLogs === 1 ? 'time' : 'times'} \u00B7 ${fmtPts(props.myPoints)} pts.
-          Tap an achievement every time you do it \u2014 each log adds its points again. The \u2018\u2212\u2019 takes one back off.</p>
+          It works like a cart: hit <strong>+</strong> every time you do one (each adds its points again), and <strong>\u2212</strong> takes one back off.</p>
         <ul className="ach-list">
           ${props.game.achievements.map(function (a) {
             var count = props.myDone[a.id] || 0;
             var adjusting = adjustingId === a.id;
             var adjNum = parseInt(adjRaw, 10) || 0;
             return html`<li key=${a.id} className="log-item">
-              <button className=${'log-row' + (count > 0 ? ' log-row-done' : '')} disabled=${props.busy}
-                onClick=${function () {
-                  if (a.adjustable) { setAdjustingId(adjusting ? null : a.id); setAdjRaw(''); }
-                  else props.onLog(a, 0);
-                }} aria-label=${'Log \u201C' + a.title + '\u201D again'}>
-                <span className=${'check' + (count > 0 ? ' check-on' : '')} aria-hidden="true">
-                  ${count > 0 ? html`<span className="check-count">${count}\u00D7</span>` : null}
-                </span>
+              <div className=${'log-row' + (count > 0 ? ' log-row-done' : '')}>
                 <div className="ach-main">
                   <div className="ach-title">${a.title}</div>
                   ${a.desc ? html`<div className="ach-desc">${a.desc}</div>` : null}
                   ${a.adjustable ? html`<span className="adjustable-tag">adjustable</span>` : null}
                 </div>
                 <${Pts} value=${a.points} plus=${true} big=${count > 0} />
-              </button>
-              ${count > 0 ? html`<button className="btn-minus" disabled=${props.busy}
-                onClick=${function () { props.onUnlog(a); }} aria-label=${'Remove one log of \u201C' + a.title + '\u201D'}>\u2212</button>` : null}
+                <div className="stepper" role="group" aria-label=${'Times you\u2019ve done \u201C' + a.title + '\u201D'}>
+                  <button className="step-btn step-minus" disabled=${props.busy || count === 0}
+                    onClick=${function () { props.onUnlog(a); }} aria-label=${'Remove one log of \u201C' + a.title + '\u201D'}>\u2212</button>
+                  <span className="step-count">${count}</span>
+                  <button className="step-btn step-plus" disabled=${props.busy}
+                    onClick=${function () {
+                      if (a.adjustable) { setAdjustingId(adjusting ? null : a.id); setAdjRaw(''); }
+                      else props.onLog(a, 0);
+                    }} aria-label=${'Log \u201C' + a.title + '\u201D one more time'}>+</button>
+                </div>
+              </div>
               ${adjusting ? html`<div className="adj-panel">
                 <span className="field-label">Adjustment points \u2014 base is ${fmtPts(a.points)}. Add extra for harder circumstances
                   (or a negative number for easier ones).</span>

@@ -251,20 +251,20 @@ const path = require('path');
   });
   await step('B logs twice, unlogs once; A gets live toasts + totals', async () => {
     await b.click('.seg-btn:has-text("Achievements")');
-    await b.click('.log-row:has-text("Read a book")');
+    await b.click('.log-item:has-text("Read a book") .step-plus');
     await b.waitForSelector('.toast:has-text("logged 1×")');
     // A is notified live that Ben logged something
     await a.waitForSelector('.toast:has-text("Ben logged “Read a book”")', { timeout: 6000 });
     await a.waitForSelector('.board li:first-child .board-row:has-text("Ben")', { timeout: 6000 });
-    await b.click('.log-row:has-text("Read a book")');
-    await b.waitForSelector('.check-count:has-text("2×")');
+    await b.click('.log-item:has-text("Read a book") .step-plus');
+    await b.waitForSelector('.log-item:has-text("Read a book") .step-count:has-text("2")');
     await a.waitForSelector('.board li:first-child .board-row:has-text("20")', { timeout: 6000 });
     // feed shows the repeat count and the running total
     await a.waitForSelector('.nth-tag:has-text("2×")');
     await a.waitForSelector('text=now on 20 pts');
-    await b.click('.log-item:has-text("Read a book") .btn-minus');
+    await b.click('.log-item:has-text("Read a book") .step-minus');
     await b.waitForSelector('.toast:has-text("one removed")');
-    await b.waitForSelector('.check-count:has-text("1×")');
+    await b.waitForSelector('.log-item:has-text("Read a book") .step-count:has-text("1")');
     await a.waitForSelector('.board li:first-child .board-row:has-text("10")', { timeout: 6000 });
   });
   await step('B: session survives reload', async () => {
@@ -296,12 +296,12 @@ const path = require('path');
     await b.waitForSelector('text=Logging is paused', { state: 'detached', timeout: 6000 });
     await b.click('.seg-btn:has-text("Achievements")');
     await b.waitForSelector('.log-row:has-text("Bonus round")');
-    await b.waitForSelector('.check-count:has-text("1×")'); // Read a book still 1×
+    await b.waitForSelector('.log-item:has-text("Read a book") .step-count:has-text("1")'); // still 1
   });
 
   await step('ADJUSTMENT: B logs adjustable +5000; feed and toasts show it', async () => {
     // Bonus round is adjustable, so tapping opens the adjustment panel
-    await b.click('.log-row:has-text("Bonus round")');
+    await b.click('.log-item:has-text("Bonus round") .step-plus');
     await b.waitForSelector('.adj-panel');
     await b.fill('.adj-panel input[type="number"]', '5000');
     await b.click('.adj-panel .btn-primary');
@@ -353,7 +353,7 @@ const path = require('path');
       await p.click('.seg-btn:has-text("Achievements")');
       await p.waitForSelector('.log-row:has-text("Read a book")');
     }));
-    await Promise.all(pages.map(p => p.click('.log-row:has-text("Read a book")')));
+    await Promise.all(pages.map(p => p.click('.log-item:has-text("Read a book") .step-plus')));
     await Promise.all(pages.map(p => p.waitForSelector('.log-row-done', { timeout: 6000 })));
     // both ticks must survive: Dana and Eli each on 10 on A's live board
     await a.waitForSelector('.board-row:has-text("Dana") >> text=10', { timeout: 6000 });

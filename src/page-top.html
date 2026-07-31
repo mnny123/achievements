@@ -377,6 +377,26 @@
   }
   .check-count { font-size: 12.5px; font-weight: 700; letter-spacing: -0.02em; }
   .log-item { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .log-item .log-row { flex: 1 1 100%; min-width: 0; cursor: auto; flex-wrap: wrap; }
+  .stepper {
+    display: flex; align-items: center; flex-shrink: 0; margin-left: auto;
+    border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden;
+    background: var(--surface);
+  }
+  .step-btn {
+    width: 46px; height: 46px; border: none; cursor: pointer;
+    font-size: 22px; font-weight: 700; line-height: 1;
+    display: grid; place-items: center;
+  }
+  .step-minus { background: var(--surface-2); color: var(--muted); }
+  .step-minus:active:not(:disabled) { background: var(--danger-soft); color: var(--danger); }
+  .step-plus { background: var(--ink); color: var(--surface); }
+  .step-btn:disabled { opacity: 0.35; cursor: default; }
+  .step-count {
+    min-width: 40px; text-align: center; font-size: 16px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   .log-item .log-row { flex: 1; min-width: 0; }
   .btn-minus {
     width: 50px; border-radius: 12px; border: 1px solid var(--line);
